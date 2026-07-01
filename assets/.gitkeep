@@ -1,0 +1,6 @@
+# Placeholder for sprite sheets and audio (Phase 1.6+)
+# Expected layout:
+#   sprites/player.png
+#   sprites/enemies.png
+#   sprites/bullets.png
+#   audio/shoot.wav

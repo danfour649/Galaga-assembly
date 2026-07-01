@@ -1,0 +1,25 @@
+# Build output
+build/
+cmake-build-*/
+
+# Compiled objects
+*.o
+*.obj
+*.a
+*.lib
+
+# Executables
+galaga
+galaga.exe
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# Assets cache (future)
+assets/*.png.bak
