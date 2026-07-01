@@ -3,8 +3,11 @@
 #include <SDL.h>
 #include <stdio.h>
 
-int main(void)
+int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+
     GameState state;
     game_init(&state);
 

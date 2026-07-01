@@ -48,6 +48,10 @@ else()
     target_compile_definitions(galaga PRIVATE GALAGA_USE_ASM=0)
 endif()
 
+if(WIN32 AND TARGET SDL2::SDL2main)
+    target_link_libraries(galaga PRIVATE SDL2::SDL2main)
+endif()
+
 if(TARGET SDL2::SDL2)
     target_link_libraries(galaga PRIVATE SDL2::SDL2)
 else()
