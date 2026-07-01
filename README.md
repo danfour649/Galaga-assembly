@@ -10,6 +10,8 @@ Prebuilt binaries for Linux, macOS, and Windows are published from every success
 
 **[Download the latest build](https://github.com/danfour649/Galaga-assembly/releases/tag/latest)**
 
+The Windows download is a `.zip` containing `galaga.exe` and its required `SDL2.dll` — unzip and run, no separate SDL2 install needed.
+
 ## Assembly is still central
 
 This is not a pure C/SDL game. The architecture deliberately keeps gameplay logic in assembly:
