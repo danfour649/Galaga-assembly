@@ -6,7 +6,8 @@ Cross-platform Galaga clone: **SDL2** (C) for portability, **NASM x86-64** for g
 
 ### Repository state
 - **SDL2 + CMake** build system is in place (`CMakeLists.txt`).
-- Minimal playable scaffold: window, player movement, shooting, demo enemy formation, collision via `asm/collision.asm`.
+- Playable game: sprites, three enemy types, dive AI, explosions, scoring, title/stage-clear/game-over flow.
+- **WebAssembly** build via Emscripten (`docs/WEB.md`, `web/shell.html`).
 - Phased plan: `docs/NEXT_STEPS.md`.
 
 ### Toolchain (provisioned in the VM)
@@ -26,13 +27,17 @@ cmake -B build && cmake --build build
 
 Headless cloud VMs have no display. To verify a graphical build compiles, the compile step is sufficient. For local/manual testing, run `./build/galaga` on a machine with a display.
 
+**Web (compile-only in CI):**
+```bash
+emcmake cmake -B build-web -G Ninja && cmake --build build-web
+```
+
 ### Assembly vs C
 
-- **`asm/collision.asm`** — `rect_overlap`, `collision_resolve` (records hits in `CollisionHits`)
-- **`asm/score.asm`** — `score_add_points`, extra lives at 20k/70k/150k
-- **`asm/game_state.asm`** — `game_state_init`, `game_state_tick`, phase transitions
-- `src/game_fallback.c` — C fallback when `GALAGA_USE_ASM=0` (ARM64, or no NASM)
-- Future gameplay modules go in `asm/` per `docs/NEXT_STEPS.md`; do not put game logic in `render.c`.
+- **`asm/*.asm`** — gameplay logic on x86-64 native builds
+- `src/game_fallback.c` — C fallback when `GALAGA_USE_ASM=0` (ARM64, Emscripten, or `-DGALAGA_USE_ASM=OFF`)
+- Future gameplay modules go in `asm/` per `docs/NEXT_STEPS.md`; mirror each in `game_fallback.c` in the same PR
+- Do not put game logic in `render.c`
 
 ### Platform notes
 
@@ -42,6 +47,7 @@ Headless cloud VMs have no display. To verify a graphical build compiles, the co
 | macOS Intel | `brew install sdl2 nasm` | yes | Full asm path |
 | macOS ARM | `brew install sdl2` | optional | C fallback until aarch64 asm |
 | Windows | vcpkg SDL2 | nasm.us | CMake + MSVC or MinGW |
+| Web (WASM) | Emscripten port | n/a | C fallback; see `docs/WEB.md` |
 
 ### Style
 

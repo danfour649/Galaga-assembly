@@ -45,9 +45,17 @@ C exists because SDL is a C library and cross-platform windowing in raw assembly
 - NASM is available on Windows, macOS, and Linux.
 - CMake `enable_language(ASM_NASM)` selects the correct object format per platform (`elf64`, `macho64`, `win64`).
 
-### Apple Silicon note
+### Non-x86 backends (ARM64, WebAssembly)
 
-Apple Silicon Macs are ARM64. Until `asm/aarch64/` modules exist, the build uses **C fallback implementations** of the same functions (see `src/game_fallback.c`). Game logic APIs are identical; only the implementation backend changes.
+Apple Silicon Macs are ARM64. The browser build targets **wasm32** via Emscripten. Neither can link NASM x86-64 objects. Until `asm/aarch64/` modules exist (ARM) or a deliberate WAT port (web), both use **C fallback implementations** of the same functions (see `src/game_fallback.c`). Game logic APIs are identical; only the implementation backend changes.
+
+| Target | Toolchain | Gameplay backend |
+|--------|-----------|------------------|
+| Linux/Windows x86-64 | CMake + NASM | `asm/*.asm` |
+| macOS ARM64 | CMake (no asm link) | `game_fallback.c` |
+| Web (WASM) | Emscripten + `-sUSE_SDL=2` | `game_fallback.c` |
+
+CMake forces `GALAGA_USE_ASM=OFF` when `CMAKE_SYSTEM_NAME` is `Emscripten`. You can also pass `-DGALAGA_USE_ASM=OFF` on native builds to exercise the fallback path (CI does this on Linux).
 
 ## Directory layout
 
@@ -57,6 +65,7 @@ Galaga-assembly/
 ├── docs/
 │   ├── ARCHITECTURE.md      ← this file
 │   ├── NEXT_STEPS.md        ← phased implementation plan
+│   ├── WEB.md               ← Emscripten build
 │   └── ASM_STYLE.md         ← coding conventions (HelloAssembly-inspired)
 ├── include/
 │   └── galaga.h             ← shared types and public API
@@ -64,11 +73,20 @@ Galaga-assembly/
 │   ├── main.c               ← entry point, SDL lifecycle
 │   ├── input.c
 │   ├── render.c
-│   ├── game.c               ← game state; dispatches to asm or fallback
+│   ├── sprites.c            ← procedural placeholder textures
+│   ├── effects.c            ← explosion VFX (C)
+│   ├── highscore.c          ← file or localStorage persistence
+│   ├── game.c               ← thin glue; dispatches to asm or fallback
 │   └── game_fallback.c      ← C implementations when asm unavailable
+├── web/
+│   └── shell.html           ← Emscripten page template
 ├── asm/
-│   ├── collision.asm        ← AABB collision (implemented)
-│   ├── entities.asm         ← (stub) entity pool
+│   ├── collision.asm
+│   ├── entities.asm
+│   ├── player.asm
+│   ├── enemies.asm
+│   ├── score.asm
+│   ├── game_state.asm
 │   └── README.md
 └── assets/                  ← sprites, sounds (future)
 ```
@@ -81,6 +99,7 @@ Galaga-assembly/
 | `cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build` | Release build |
 | `./build/galaga` | Run (Linux/macOS) |
 | `build\Release\galaga.exe` | Run (Windows, MSVC generator) |
+| `emcmake cmake -B build-web && cmake --build build-web` | WebAssembly + HTML (see `docs/WEB.md`) |
 
 ## Data flow (one frame)
 
