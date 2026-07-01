@@ -29,7 +29,7 @@ Headless cloud VMs have no display. To verify a graphical build compiles, the co
 ### Assembly vs C
 
 - **`asm/collision.asm`** — `rect_overlap()` (linked on x86-64 when NASM is present)
-- **`asm/entities.asm`** — `entity_spawn`, `entity_kill`, `entity_tick_all`, `entities_spawn_demo_formation`
+- **`asm/player.asm`** — `player_init`, `player_tick`, `player_clamp_x`, `player_try_fire`, `player_lose_life`
 - `src/game_fallback.c` — C fallback when `GALAGA_USE_ASM=0` (ARM64, or no NASM)
 - Future gameplay modules go in `asm/` per `docs/NEXT_STEPS.md`; do not put game logic in `render.c`.
 

@@ -27,8 +27,12 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full split. On Apple Si
 cmake -B build
 cmake --build build
 ./build/galaga          # Linux / macOS
-# build\Debug\galaga.exe   # Windows
+# build\galaga.exe      # Windows
 ```
+
+### CI builds
+
+Every push/PR to `main` runs [GitHub Actions](.github/workflows/build.yml) on **Linux, macOS, and Windows**. Built executables are uploaded as workflow artifacts (`galaga-linux-x86_64`, `galaga-macos`, `galaga-windows-x86_64`).
 
 ### Controls
 

@@ -34,7 +34,17 @@
 %define B_FROM_PLAYER     20
 
 %define P_X               0
+%define P_Y               4
 %define P_W               8
+%define P_H               12
+%define P_LIVES           16
+%define P_SCORE           20
+%define P_STAGE           24
+
+%define GS_RUNNING        1340
+%define GS_GAME_OVER      1341
+
+%define PLAYER_START_LIVES 3
 
 %define ENEMY_W_DEFAULT   14
 %define ENEMY_H_DEFAULT   14

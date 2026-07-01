@@ -7,7 +7,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 find_package(SDL2 REQUIRED)
 
 # --- Assembly (NASM x86-64) ---
-set(GALAGA_ASM_SOURCES asm/collision.asm asm/entities.asm)
+set(GALAGA_ASM_SOURCES asm/collision.asm asm/entities.asm asm/player.asm)
 set(GALAGA_USE_ASM 1)
 
 find_program(NASM_EXECUTABLE nasm)

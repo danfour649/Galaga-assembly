@@ -62,6 +62,13 @@ void entity_tick_all(GameState *state, int delta_px);
 int  entity_any_active(const GameState *state, int kind);
 void entities_spawn_demo_formation(GameState *state);
 
+/* Player (asm/player.asm) */
+void player_init(GameState *state);
+void player_clamp_x(Player *player);
+void player_tick(GameState *state, int delta_px, int move_left, int move_right);
+void player_try_fire(GameState *state);
+int  player_lose_life(GameState *state);
+
 /* --- C-only modules --- */
 
 void game_init(GameState *state);

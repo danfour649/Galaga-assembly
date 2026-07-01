@@ -128,4 +128,47 @@ void entities_spawn_demo_formation(GameState *state)
     }
 }
 
+void player_init(GameState *state)
+{
+    state->player.x = GALAGA_WIDTH / 2 - 8;
+    state->player.y = GALAGA_HEIGHT - 36;
+    state->player.w = 16;
+    state->player.h = 16;
+    state->player.lives = 3;
+    state->player.score = 0;
+    state->player.stage = 1;
+}
+
+void player_clamp_x(Player *player)
+{
+    if (player->x < 0)
+        player->x = 0;
+    if (player->x + player->w > GALAGA_WIDTH)
+        player->x = GALAGA_WIDTH - player->w;
+}
+
+void player_tick(GameState *state, int delta_px, int move_left, int move_right)
+{
+    if (move_left)
+        state->player.x -= delta_px;
+    if (move_right)
+        state->player.x += delta_px;
+    player_clamp_x(&state->player);
+}
+
+void player_try_fire(GameState *state)
+{
+    int bx = state->player.x + state->player.w / 2 - 1;
+    int by = state->player.y - 8;
+    entity_spawn(state, ENTITY_KIND_BULLET, 1, bx, by);
+}
+
+int player_lose_life(GameState *state)
+{
+    state->player.lives--;
+    if (state->player.lives <= 0)
+        state->game_over = true;
+    return state->player.lives;
+}
+
 #endif

@@ -25,7 +25,8 @@ C exists because SDL is a C library and cross-platform windowing in raw assembly
 │  game.c          Game state, calls into asm/*.asm       │
 ├─────────────────────────────────────────────────────────┤
 │  asm/collision.asm     AABB overlap tests               │
-│  asm/entities.asm      (planned) Entity pool updates    │
+│  asm/entities.asm      Entity pool management           │
+│  asm/player.asm        Movement, clamp, fire, lives     │
 │  asm/enemies.asm       (planned) Formation + dive AI    │
 │  asm/score.asm         (planned) Scoring + extra lives  │
 └─────────────────────────────────────────────────────────┘
