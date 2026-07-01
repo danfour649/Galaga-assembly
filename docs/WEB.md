@@ -55,6 +55,14 @@ Desktop builds persist to `galaga_hi.txt`. The web build uses `localStorage` und
 
 Every push/PR compiles the WASM target in GitHub Actions (`wasm` job) and uploads `galaga-wasm` artifacts. A separate **Linux C fallback** job builds with `-DGALAGA_USE_ASM=OFF` to catch parity drift before WASM.
 
+## Play online (GitHub Pages)
+
+Every push to `main` deploys the WASM build to GitHub Pages via the `pages` job in [`.github/workflows/build.yml`](../.github/workflows/build.yml).
+
+**[Play Galaga-assembly](https://danfour649.github.io/Galaga-assembly/galaga.html)**
+
+The site root (`/Galaga-assembly/`) redirects to `galaga.html`. Pages must be enabled in the repository settings with **Source: GitHub Actions** (the first deploy configures this automatically on most repos).
+
 ## Future assets
 
 When bitmap/audio assets land in `assets/`, add Emscripten preload to `CMakeLists.txt`:
