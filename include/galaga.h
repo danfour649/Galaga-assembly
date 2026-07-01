@@ -12,6 +12,9 @@
 #define MAX_ENEMIES 40
 #define MAX_BULLETS 8
 
+#define ENTITY_KIND_ENEMY  0
+#define ENTITY_KIND_BULLET 1
+
 typedef struct {
     int x, y, w, h;
 } Rect;
@@ -51,6 +54,13 @@ typedef struct {
 
 /* Returns 1 if rectangles overlap, 0 otherwise. */
 int rect_overlap(const Rect *a, const Rect *b);
+
+/* Entity pool (asm/entities.asm) */
+int  entity_spawn(GameState *state, int kind, int type, int x, int y);
+void entity_kill(GameState *state, int kind, int index);
+void entity_tick_all(GameState *state, int delta_px);
+int  entity_any_active(const GameState *state, int kind);
+void entities_spawn_demo_formation(GameState *state);
 
 /* --- C-only modules --- */
 

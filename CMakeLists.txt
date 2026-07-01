@@ -7,13 +7,13 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 find_package(SDL2 REQUIRED)
 
 # --- Assembly (NASM x86-64) ---
-set(GALAGA_ASM_SOURCES asm/collision.asm)
+set(GALAGA_ASM_SOURCES asm/collision.asm asm/entities.asm)
 set(GALAGA_USE_ASM 1)
 
 find_program(NASM_EXECUTABLE nasm)
 if(NASM_EXECUTABLE AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i686|x86"))
     enable_language(ASM_NASM)
-    set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -Wall")
+    set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -Wall -I${CMAKE_SOURCE_DIR}")
     set(GALAGA_ASM_LIB galaga_asm)
     add_library(${GALAGA_ASM_LIB} OBJECT ${GALAGA_ASM_SOURCES})
     message(STATUS "NASM found: assembly modules enabled")

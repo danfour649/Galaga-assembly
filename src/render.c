@@ -109,7 +109,7 @@ void render_frame(const GameState *state)
     SDL_RenderFillRect(renderer, &hud);
 
     char buf[128];
-    snprintf(buf, sizeof(buf), "SCORE %d   LIVES %d   STAGE %d   [asm collision]",
+    snprintf(buf, sizeof(buf), "SCORE %d   LIVES %d   STAGE %d   [asm]",
              state->player.score, state->player.lives, state->player.stage);
     (void)buf; /* TODO: SDL_ttf for text; HUD values visible via window title for now */
 

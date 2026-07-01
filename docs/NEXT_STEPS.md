@@ -28,13 +28,13 @@ You should see a window with a player ship (cyan), enemies (colored rects), a st
 
 Goal: one screen, shoot enemies, score, lives, game over.
 
-### 1.1 Entity system
-- [ ] Define fixed-size entity pools in `include/galaga.h` (player, enemies, bullets)
-- [ ] Implement `asm/entities.asm`:
+### 1.1 Entity system ✅
+- [x] Define fixed-size entity pools in `include/galaga.h` (player, enemies, bullets)
+- [x] Implement `asm/entities.asm`:
   - `entity_spawn(type, x, y)`
   - `entity_kill(index)`
   - `entity_tick_all(delta)`
-- [ ] C glue in `game.c` only marshals structs; no gameplay logic in C
+- [x] C glue in `game.c` only marshals structs; no gameplay logic in C
 
 ### 1.2 Player
 - [ ] Clamp movement to playfield bounds (asm: `player_clamp_x`)

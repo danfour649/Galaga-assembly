@@ -21,86 +21,6 @@ static Rect player_rect(const Player *p)
     return r;
 }
 
-static void spawn_demo_formation(GameState *state)
-{
-    const int cols = 8;
-    const int rows = 3;
-    const int start_x = 24;
-    const int start_y = 40;
-    const int gap_x = 22;
-    const int gap_y = 20;
-    int idx = 0;
-
-    for (int row = 0; row < rows; row++) {
-        for (int col = 0; col < cols; col++) {
-            Enemy *e = &state->enemies[idx++];
-            e->active = true;
-            e->x = start_x + col * gap_x;
-            e->y = start_y + row * gap_y;
-            e->w = 14;
-            e->h = 14;
-            e->type = row;
-            e->hp = 1;
-        }
-    }
-}
-
-void game_init(GameState *state)
-{
-    memset(state, 0, sizeof(*state));
-    state->running = true;
-
-    state->player.x = GALAGA_WIDTH / 2 - 8;
-    state->player.y = GALAGA_HEIGHT - 36;
-    state->player.w = 16;
-    state->player.h = 16;
-    state->player.lives = 3;
-    state->player.score = 0;
-    state->player.stage = 1;
-
-    spawn_demo_formation(state);
-}
-
-static void fire_bullet(GameState *state)
-{
-    int active_player_bullets = 0;
-    for (int i = 0; i < MAX_BULLETS; i++) {
-        if (state->bullets[i].active && state->bullets[i].from_player)
-            active_player_bullets++;
-    }
-    if (active_player_bullets >= 2)
-        return;
-
-    for (int i = 0; i < MAX_BULLETS; i++) {
-        Bullet *b = &state->bullets[i];
-        if (!b->active) {
-            b->active = true;
-            b->from_player = true;
-            b->w = 3;
-            b->h = 8;
-            b->x = state->player.x + state->player.w / 2 - b->w / 2;
-            b->y = state->player.y - b->h;
-            return;
-        }
-    }
-}
-
-static void move_bullets(GameState *state, float dt)
-{
-    const int speed = (int)(120.0f * dt);
-    for (int i = 0; i < MAX_BULLETS; i++) {
-        Bullet *b = &state->bullets[i];
-        if (!b->active)
-            continue;
-        if (b->from_player)
-            b->y -= speed;
-        else
-            b->y += speed;
-        if (b->y < -b->h || b->y > GALAGA_HEIGHT)
-            b->active = false;
-    }
-}
-
 static void resolve_collisions(GameState *state)
 {
     Rect pr = player_rect(&state->player);
@@ -119,8 +39,8 @@ static void resolve_collisions(GameState *state)
 
             er = enemy_rect(e);
             if (rect_overlap(&br, &er)) {
-                b->active = false;
-                e->active = false;
+                entity_kill(state, ENTITY_KIND_BULLET, bi);
+                entity_kill(state, ENTITY_KIND_ENEMY, ei);
                 state->player.score += 100;
             }
         }
@@ -133,7 +53,7 @@ static void resolve_collisions(GameState *state)
             continue;
         er = enemy_rect(e);
         if (rect_overlap(&pr, &er)) {
-            e->active = false;
+            entity_kill(state, ENTITY_KIND_ENEMY, ei);
             state->player.lives--;
             if (state->player.lives <= 0)
                 state->game_over = true;
@@ -141,13 +61,20 @@ static void resolve_collisions(GameState *state)
     }
 }
 
-static bool all_enemies_dead(const GameState *state)
+void game_init(GameState *state)
 {
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        if (state->enemies[i].active)
-            return false;
-    }
-    return true;
+    memset(state, 0, sizeof(*state));
+    state->running = true;
+
+    state->player.x = GALAGA_WIDTH / 2 - 8;
+    state->player.y = GALAGA_HEIGHT - 36;
+    state->player.w = 16;
+    state->player.h = 16;
+    state->player.lives = 3;
+    state->player.score = 0;
+    state->player.stage = 1;
+
+    entities_spawn_demo_formation(state);
 }
 
 void game_tick(GameState *state, float dt, bool move_left, bool move_right, bool fire)
@@ -166,14 +93,17 @@ void game_tick(GameState *state, float dt, bool move_left, bool move_right, bool
     if (state->player.x + state->player.w > GALAGA_WIDTH)
         state->player.x = GALAGA_WIDTH - state->player.w;
 
-    if (fire)
-        fire_bullet(state);
+    if (fire) {
+        int bx = state->player.x + state->player.w / 2 - 1;
+        int by = state->player.y - 8;
+        entity_spawn(state, ENTITY_KIND_BULLET, 1, bx, by);
+    }
 
-    move_bullets(state, dt);
+    entity_tick_all(state, (int)(120.0f * dt));
     resolve_collisions(state);
 
-    if (all_enemies_dead(state)) {
+    if (!entity_any_active(state, ENTITY_KIND_ENEMY)) {
         state->player.stage++;
-        spawn_demo_formation(state);
+        entities_spawn_demo_formation(state);
     }
 }
