@@ -170,8 +170,10 @@ void player_try_fire(GameState *state)
 int player_lose_life(GameState *state)
 {
     state->player.lives--;
-    if (state->player.lives <= 0)
+    if (state->player.lives <= 0) {
         state->game_over = true;
+        state->phase = GAME_PHASE_GAME_OVER;
+    }
     return state->player.lives;
 }
 
@@ -230,6 +232,143 @@ void enemies_tick_all(GameState *state, int delta_px)
         } else {
             e->x = e->home_x + (int)((frame + i) % 4) - 1;
             e->y = e->home_y + (int)(((frame >> 2) + i) % 2);
+        }
+    }
+}
+
+static void score_add_enemy_kill(GameState *state, int enemy_index)
+{
+    const Enemy *e = &state->enemies[enemy_index];
+    int points = (e->state == ENEMY_STATE_DIVING) ? SCORE_BEE_DIVING : SCORE_BEE_FORMATION;
+    score_add_points(state, points);
+}
+
+void score_add_points(GameState *state, int points)
+{
+    state->player.score += points;
+    while (state->next_extra_life > 0 && state->player.score >= state->next_extra_life) {
+        state->player.lives++;
+        if (state->next_extra_life == 20000)
+            state->next_extra_life = 70000;
+        else if (state->next_extra_life == 70000)
+            state->next_extra_life = 150000;
+        else
+            state->next_extra_life = 0;
+    }
+}
+
+static void record_hit(CollisionHits *hits, int type, int bullet_idx, int enemy_idx)
+{
+    if (hits->count >= MAX_COLLISION_HITS)
+        return;
+    int i = hits->count++;
+    hits->type[i] = type;
+    hits->bullet_idx[i] = bullet_idx;
+    hits->enemy_idx[i] = enemy_idx;
+}
+
+static int boxes_overlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2)
+{
+    Rect a = { x1, y1, w1, h1 };
+    Rect b = { x2, y2, w2, h2 };
+    return rect_overlap(&a, &b);
+}
+
+void collision_resolve(GameState *state, CollisionHits *hits)
+{
+    hits->count = 0;
+
+    for (int bi = 0; bi < MAX_BULLETS; bi++) {
+        Bullet *b = &state->bullets[bi];
+        if (!b->active || !b->from_player)
+            continue;
+        for (int ei = 0; ei < MAX_ENEMIES; ei++) {
+            Enemy *e = &state->enemies[ei];
+            if (!e->active)
+                continue;
+            if (boxes_overlap(b->x, b->y, b->w, b->h, e->x, e->y, e->w, e->h)) {
+                record_hit(hits, HIT_PLAYER_BULLET_ENEMY, bi, ei);
+                score_add_enemy_kill(state, ei);
+                entity_kill(state, ENTITY_KIND_BULLET, bi);
+                entity_kill(state, ENTITY_KIND_ENEMY, ei);
+            }
+        }
+    }
+
+    for (int bi = 0; bi < MAX_BULLETS; bi++) {
+        Bullet *b = &state->bullets[bi];
+        if (!b->active || b->from_player)
+            continue;
+        if (boxes_overlap(b->x, b->y, b->w, b->h,
+                          state->player.x, state->player.y,
+                          state->player.w, state->player.h)) {
+            record_hit(hits, HIT_ENEMY_BULLET_PLAYER, bi, -1);
+            entity_kill(state, ENTITY_KIND_BULLET, bi);
+            player_lose_life(state);
+        }
+    }
+
+    for (int ei = 0; ei < MAX_ENEMIES; ei++) {
+        Enemy *e = &state->enemies[ei];
+        if (!e->active)
+            continue;
+        if (boxes_overlap(e->x, e->y, e->w, e->h,
+                          state->player.x, state->player.y,
+                          state->player.w, state->player.h)) {
+            record_hit(hits, HIT_ENEMY_BODY_PLAYER, -1, ei);
+            entity_kill(state, ENTITY_KIND_ENEMY, ei);
+            player_lose_life(state);
+        }
+    }
+}
+
+void game_state_init(GameState *state)
+{
+    state->phase = GAME_PHASE_TITLE;
+    state->clear_timer = 0;
+    state->next_extra_life = 20000;
+    state->game_over = false;
+}
+
+int game_state_is_playing(const GameState *state)
+{
+    return state->phase == GAME_PHASE_PLAYING;
+}
+
+void game_state_begin_stage_clear(GameState *state)
+{
+    state->phase = GAME_PHASE_STAGE_CLEAR;
+    state->clear_timer = STAGE_CLEAR_FRAMES;
+}
+
+void game_state_tick(GameState *state, int fire_pressed)
+{
+    if (state->phase == GAME_PHASE_TITLE) {
+        if (fire_pressed) {
+            state->phase = GAME_PHASE_PLAYING;
+            state->game_over = false;
+            player_init(state);
+            enemies_spawn_formation(state);
+        }
+        return;
+    }
+
+    if (state->phase == GAME_PHASE_STAGE_CLEAR) {
+        if (state->clear_timer > 0)
+            state->clear_timer--;
+        else {
+            state->phase = GAME_PHASE_PLAYING;
+            enemies_spawn_formation(state);
+        }
+        return;
+    }
+
+    if (state->phase == GAME_PHASE_GAME_OVER) {
+        if (fire_pressed) {
+            state->phase = GAME_PHASE_TITLE;
+            state->game_over = false;
+            state->frame = 0;
+            player_init(state);
         }
     }
 }

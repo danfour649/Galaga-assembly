@@ -137,8 +137,15 @@ player_lose_life:
     mov     eax, [r10 + P_LIVES]
     test    eax, eax
     jg      .still_alive
-    mov     byte [r10 + GS_GAME_OVER], 1
+    jmp     .set_game_over_phase
 .still_alive:
+    ret
+
+.set_game_over_phase:
+    mov     r10, ST_PTR
+    mov     byte [r10 + GS_GAME_OVER], 1
+    mov     dword [r10 + GS_PHASE], GAME_PHASE_GAME_OVER
+    xor     eax, eax
     ret
 
 section .note.GNU-stack noalloc noexec nowrite progbits

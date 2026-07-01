@@ -24,11 +24,12 @@ C exists because SDL is a C library and cross-platform windowing in raw assembly
 │  render.c        Sprites, HUD, starfield (SDL_Renderer) │
 │  game.c          Game state, calls into asm/*.asm       │
 ├─────────────────────────────────────────────────────────┤
-│  asm/collision.asm     AABB overlap tests               │
-│  asm/entities.asm      Entity pool management           │
-│  asm/player.asm        Movement, clamp, fire, lives     │
-│  asm/enemies.asm       Formation, dive AI, enemy fire        │
-│  asm/score.asm         (planned) Scoring + extra lives  │
+│  asm/collision.asm     AABB overlap + collision_resolve       │
+│  asm/entities.asm      Entity pool management                 │
+│  asm/player.asm        Movement, clamp, fire, lives           │
+│  asm/enemies.asm       Formation, dive AI, enemy fire         │
+│  asm/score.asm         Points and extra lives                 │
+│  asm/game_state.asm    Title / playing / stage clear / over   │
 └─────────────────────────────────────────────────────────┘
 ```
 

@@ -47,13 +47,13 @@ Goal: one screen, shoot enemies, score, lives, game over.
 - [x] Random dive attack: enemy leaves formation, follows simple path toward player
 - [x] Enemy fires downward while diving
 
-### 1.4 Collision (extend existing)
-- [ ] `asm/collision.asm`: bullet↔enemy, bullet↔player, enemy body↔player
-- [ ] Return hit indices so C/render can play effects (no logic in render)
+### 1.4 Collision (extend existing) ✅
+- [x] `asm/collision.asm`: bullet↔enemy, bullet↔player, enemy body↔player
+- [x] Return hit indices so C/render can play effects (no logic in render)
 
-### 1.5 Score & game state
-- [ ] `asm/score.asm`: add points, extra life at 20k/70k/150k
-- [ ] State machine: `TITLE → PLAYING → STAGE_CLEAR → GAME_OVER`
+### 1.5 Score & game state ✅
+- [x] `asm/score.asm`: add points, extra life at 20k/70k/150k
+- [x] State machine: `TITLE → PLAYING → STAGE_CLEAR → GAME_OVER`
 
 ### 1.6 Rendering upgrade
 - [ ] Replace colored rects with placeholder 16×16 bitmap sprites (`assets/`)
@@ -133,8 +133,8 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ## Immediate next PR (recommended)
 
-1. Merge Phase 1.2–1.3 PR (player + enemies asm + CI).
-2. Open **Phase 1.4** PR: collision resolution in `asm/collision.asm`.
+1. Merge Phase 1.2–1.5 PR.
+2. Open **Phase 1.6** PR: sprite rendering upgrade.
 
 ---
 

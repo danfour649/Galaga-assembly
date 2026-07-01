@@ -21,6 +21,31 @@
 %define GS_RUNNING        1980
 %define GS_GAME_OVER      1981
 %define GS_FRAME          1984
+%define GS_PHASE          1988
+%define GS_CLEAR_TIMER    1992
+%define GS_NEXT_EXTRA_LIFE 1996
+
+%define GAME_PHASE_TITLE       0
+%define GAME_PHASE_PLAYING     1
+%define GAME_PHASE_STAGE_CLEAR 2
+%define GAME_PHASE_GAME_OVER   3
+
+%define HIT_PLAYER_BULLET_ENEMY 0
+%define HIT_ENEMY_BULLET_PLAYER 1
+%define HIT_ENEMY_BODY_PLAYER   2
+
+%define H_OFF_COUNT       0
+%define H_OFF_TYPE        4
+%define H_OFF_BULLET      36
+%define H_OFF_ENEMY       68
+%define MAX_COLLISION_HITS 8
+
+%define SCORE_BEE_FORMATION 50
+%define SCORE_BEE_DIVING    100
+%define EXTRA_LIFE_1        20000
+%define EXTRA_LIFE_2        70000
+%define EXTRA_LIFE_3        150000
+%define STAGE_CLEAR_FRAMES  90
 
 %define ENEMY_SIZE        44
 %define BULLET_SIZE       24
