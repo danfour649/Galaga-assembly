@@ -152,6 +152,19 @@ collision_resolve:
     mov     ecx, r14d
     RECORD_HIT
     pop     rbx
+%ifidn __OUTPUT_FORMAT__,win64
+    mov     rcx, rbx
+    mov     edx, r14d
+    call    score_add_enemy_kill
+    mov     rcx, rbx
+    mov     edx, ENTITY_KIND_BULLET
+    mov     r8d, r12d
+    call    entity_kill
+    mov     rcx, rbx
+    mov     edx, ENTITY_KIND_ENEMY
+    mov     r8d, r14d
+    call    entity_kill
+%else
     mov     rdi, rbx
     mov     esi, r14d
     call    score_add_enemy_kill
@@ -163,6 +176,7 @@ collision_resolve:
     mov     esi, ENTITY_KIND_ENEMY
     mov     rdi, rbx
     call    entity_kill
+%endif
     jmp     .pb_next_e
 .pb_hurt:
     dec     dword [r11 + E_HP]
@@ -172,10 +186,17 @@ collision_resolve:
     mov     ecx, r14d
     RECORD_HIT
     pop     rbx
+%ifidn __OUTPUT_FORMAT__,win64
+    mov     rcx, rbx
+    mov     edx, ENTITY_KIND_BULLET
+    mov     r8d, r12d
+    call    entity_kill
+%else
     mov     edx, r12d
     mov     esi, ENTITY_KIND_BULLET
     mov     rdi, rbx
     call    entity_kill
+%endif
 .pb_next_e:
     inc     r14d
     jmp     .pb_enemy
@@ -210,12 +231,21 @@ collision_resolve:
     mov     ecx, -1
     RECORD_HIT
     pop     rbx
+%ifidn __OUTPUT_FORMAT__,win64
+    mov     rcx, rbx
+    mov     edx, ENTITY_KIND_BULLET
+    mov     r8d, r12d
+    call    entity_kill
+    mov     rcx, rbx
+    call    player_lose_life
+%else
     mov     edx, r12d
     mov     esi, ENTITY_KIND_BULLET
     mov     rdi, rbx
     call    entity_kill
     mov     rdi, rbx
     call    player_lose_life
+%endif
 .eb_next:
     inc     r12d
     jmp     .eb_bullet
@@ -243,12 +273,21 @@ collision_resolve:
     mov     ecx, r14d
     RECORD_HIT
     pop     rbx
+%ifidn __OUTPUT_FORMAT__,win64
+    mov     rcx, rbx
+    mov     edx, ENTITY_KIND_ENEMY
+    mov     r8d, r14d
+    call    entity_kill
+    mov     rcx, rbx
+    call    player_lose_life
+%else
     mov     edx, r14d
     mov     esi, ENTITY_KIND_ENEMY
     mov     rdi, rbx
     call    entity_kill
     mov     rdi, rbx
     call    player_lose_life
+%endif
 .body_next:
     inc     r14d
     jmp     .body_loop
