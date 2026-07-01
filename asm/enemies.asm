@@ -1,10 +1,5 @@
 ;------------------------------------------------------------------------------
-; enemies.asm
-;
-; Galaga-assembly — bee formation, wobble, dive attacks (x86-64, NASM)
-;
-; History:
-;   2026-07-01  Phase 1.3 formation, wobble, dive, enemy fire
+; enemies.asm — formation, entry, wobble, dive AI (x86-64, NASM)
 ;------------------------------------------------------------------------------
 
 %include "include/galaga.inc"
@@ -19,10 +14,29 @@ section .text
 
 extern entity_spawn
 
-;------------------------------------------------------------------------------
-; void enemies_spawn_formation(GameState *state)
-;   Spawns 5×8 bees in a static grid.
-;------------------------------------------------------------------------------
+; row type: 0=boss, 1-2=butterfly, 3-4=bee
+row_to_type:
+    cmp     eax, 0
+    je      .boss
+    cmp     eax, 3
+    jge     .bee
+    mov     eax, ENEMY_TYPE_BUTTERFLY
+    ret
+.boss:
+    mov     eax, ENEMY_TYPE_BOSS
+    ret
+.bee:
+    mov     eax, ENEMY_TYPE_BEE
+    ret
+
+setup_entering:
+    ; eax = enemy index, rbx = state
+    imul    eax, ENEMY_SIZE
+    lea     rax, [rbx + rax + GS_ENEMIES]
+    mov     dword [rax + E_STATE], ENEMY_STATE_ENTERING
+    sub     dword [rax + E_Y], ENTER_DROP
+    ret
+
 global enemies_spawn_formation
 enemies_spawn_formation:
     push    rbx
@@ -39,6 +53,9 @@ enemies_spawn_formation:
 .col:
     cmp     r13d, FORM_COLS
     jge     .next_row
+    mov     eax, r12d
+    call    row_to_type
+    mov     r15d, eax
     mov     eax, r13d
     imul    eax, FORM_GAP_X
     add     eax, FORM_START_X
@@ -46,24 +63,28 @@ enemies_spawn_formation:
     mov     eax, r12d
     imul    eax, FORM_GAP_Y
     add     eax, FORM_START_Y
-    mov     r15d, eax
+    mov     r10d, eax
 %ifidn __OUTPUT_FORMAT__,win64
     mov     rcx, rbx
     xor     edx, edx
-    mov     r8d, ENEMY_TYPE_BEE
+    mov     r8d, r15d
     mov     r9d, r14d
-    push    r15
+    push    r10
     sub     rsp, 20h
     call    entity_spawn
     add     rsp, 28h
 %else
     mov     rdi, rbx
     xor     esi, esi
-    mov     edx, ENEMY_TYPE_BEE
+    mov     edx, r15d
     mov     ecx, r14d
-    mov     r8d, r15d
+    mov     r8d, r10d
     call    entity_spawn
 %endif
+    cmp     eax, -1
+    jl      .next_col
+    call    setup_entering
+.next_col:
     inc     r13d
     jmp     .col
 .next_row:
@@ -77,26 +98,27 @@ enemies_spawn_formation:
     pop     rbx
     ret
 
-;------------------------------------------------------------------------------
-; Start dive for enemy at rax (pointer to enemy struct)
-; rbx = state
-;------------------------------------------------------------------------------
 start_dive:
     push    r12
     mov     r12d, [rbx + P_X]
     mov     ecx, [rax + E_X]
     sub     r12d, ecx
+    cmp     dword [rax + E_TYPE], ENEMY_TYPE_BUTTERFLY
+    je      .butterfly_vx
     cmp     r12d, 0
     jg      .vx_pos
     mov     r12d, -2
     jmp     .vx_set
 .vx_pos:
-    cmp     r12d, 0
-    jl      .vx_neg
     mov     r12d, 2
     jmp     .vx_set
-.vx_neg:
-    mov     r12d, -2
+.butterfly_vx:
+    cmp     r12d, 0
+    jg      .bvx_pos
+    mov     r12d, -3
+    jmp     .vx_set
+.bvx_pos:
+    mov     r12d, 3
 .vx_set:
     mov     dword [rax + E_STATE], ENEMY_STATE_DIVING
     mov     [rax + E_VX], r12d
@@ -104,9 +126,19 @@ start_dive:
     pop     r12
     ret
 
-;------------------------------------------------------------------------------
-; void enemies_tick_all(GameState *state, int delta_px)
-;------------------------------------------------------------------------------
+try_start_dive:
+    ; r14d = enemy index
+    mov     eax, r14d
+    imul    eax, ENEMY_SIZE
+    lea     rax, [rbx + rax + GS_ENEMIES]
+    cmp     byte [rax + E_ACTIVE], 0
+    je      .no
+    cmp     dword [rax + E_STATE], ENEMY_STATE_FORMATION
+    jne     .no
+    call    start_dive
+.no:
+    ret
+
 global enemies_tick_all
 enemies_tick_all:
     push    rbx
@@ -122,25 +154,36 @@ enemies_tick_all:
     mov     r13d, [rbx + GS_FRAME]
     inc     dword [rbx + GS_FRAME]
 
-    ; Try to start a dive periodically
+    ; dive interval scales with stage
+    mov     eax, [rbx + P_STAGE]
+    imul    eax, 6
+    mov     ecx, DIVE_INTERVAL_BASE
+    sub     ecx, eax
+    cmp     ecx, 35
+    jge     .iv_ok
+    mov     ecx, 35
+.iv_ok:
     mov     eax, r13d
     xor     edx, edx
-    mov     ecx, DIVE_INTERVAL
     div     ecx
     test    edx, edx
     jnz     .tick_loop
-    mov     eax, r13d
+    mov     r14d, eax
+    xor     edx, edx
+    mov     eax, r14d
     mov     ecx, MAX_ENEMIES
     div     ecx
     mov     r14d, edx
-    mov     eax, r14d
-    imul    eax, ENEMY_SIZE
-    lea     rax, [rbx + rax + GS_ENEMIES]
-    cmp     byte [rax + E_ACTIVE], 0
-    je      .tick_loop
-    cmp     dword [rax + E_STATE], ENEMY_STATE_FORMATION
-    jne     .tick_loop
-    call    start_dive
+    call    try_start_dive
+    mov     eax, [rbx + P_STAGE]
+    cmp     eax, 2
+    jl      .tick_loop
+    add     r14d, 7
+    cmp     r14d, MAX_ENEMIES
+    jl      .idx_ok
+    sub     r14d, MAX_ENEMIES
+.idx_ok:
+    call    try_start_dive
 
 .tick_loop:
     xor     r14d, r14d
@@ -152,9 +195,10 @@ enemies_tick_all:
     lea     rax, [rbx + rax + GS_ENEMIES]
     cmp     byte [rax + E_ACTIVE], 0
     je      .next
+    cmp     dword [rax + E_STATE], ENEMY_STATE_ENTERING
+    je      .tick_enter
     cmp     dword [rax + E_STATE], ENEMY_STATE_DIVING
     je      .tick_diving
-    ; formation wobble
     mov     ecx, r13d
     add     ecx, r14d
     and     ecx, 3
@@ -171,13 +215,33 @@ enemies_tick_all:
     mov     [rax + E_Y], edx
     jmp     .next
 
+.tick_enter:
+    mov     ecx, [rax + E_Y]
+    add     ecx, r12d
+    mov     [rax + E_Y], ecx
+    mov     edx, [rax + E_HOME_Y]
+    cmp     ecx, edx
+    jl      .next
+    mov     [rax + E_Y], edx
+    mov     dword [rax + E_STATE], ENEMY_STATE_FORMATION
+    jmp     .next
+
 .tick_diving:
     mov     ecx, [rax + E_VX]
     add     [rax + E_X], ecx
     add     [rax + E_Y], r12d
+    mov     ecx, [rbx + P_STAGE]
+    shr     ecx, 1
+    mov     edx, DIVE_FIRE_COOLDOWN
+    sub     edx, ecx
+    cmp     edx, 15
+    jge     .fcd_ok
+    mov     edx, 15
+.fcd_ok:
     cmp     dword [rax + E_FIRE_CD], 0
     jg      .cooldown
     push    rax
+    push    rdx
     mov     r10d, [rax + E_X]
     mov     r11d, [rax + E_W]
     shr     r11d, 1
@@ -202,8 +266,9 @@ enemies_tick_all:
     mov     r8d, r11d
     call    entity_spawn
 %endif
+    pop     rdx
     pop     rax
-    mov     dword [rax + E_FIRE_CD], DIVE_FIRE_COOLDOWN
+    mov     [rax + E_FIRE_CD], edx
     jmp     .return_check
 .cooldown:
     dec     dword [rax + E_FIRE_CD]

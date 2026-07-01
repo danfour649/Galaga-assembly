@@ -55,9 +55,9 @@ Goal: one screen, shoot enemies, score, lives, game over.
 - [x] `asm/score.asm`: add points, extra life at 20k/70k/150k
 - [x] State machine: `TITLE → PLAYING → STAGE_CLEAR → GAME_OVER`
 
-### 1.6 Rendering upgrade
-- [ ] Replace colored rects with placeholder 16×16 bitmap sprites (`assets/`)
-- [ ] Simple explosion animation (2–3 frames)
+### 1.6 Rendering upgrade ✅
+- [x] Procedural 16×16 placeholder sprites (`src/sprites.c`)
+- [x] Simple explosion animation (`src/effects.c`)
 
 **Done when:** Clear all enemies → next stage; die three times → game over screen.
 
@@ -65,17 +65,17 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ## Phase 2 — Classic Galaga feel
 
-### 2.1 All enemy types
+### 2.1 All enemy types ✅
 | Type | Rows | Hits | Asm behavior |
 |------|------|------|--------------|
 | Bee | 2 bottom | 1 | Basic dive |
-| Butterfly | 2 middle | 1 | Faster dive, escort Boss |
-| Boss Galaga | 1 top (×4) | 2 | Color change on first hit |
+| Butterfly | 2 middle | 1 | Faster dive |
+| Boss Galaga | 1 top | 2 | Color tint on first hit (render) |
 
-### 2.2 Entry animation
-- [ ] Enemies fly in from off-screen into formation slots (`asm/enemies.asm`)
+### 2.2 Entry animation ✅
+- [x] Enemies drop into formation slots (`ENEMY_STATE_ENTERING` in `asm/enemies.asm`)
 
-### 2.3 Accurate scoring
+### 2.3 Accurate scoring ✅
 | Target | Points |
 |--------|--------|
 | Bee in formation | 50 |
@@ -83,12 +83,10 @@ Goal: one screen, shoot enemies, score, lives, game over.
 | Butterfly in formation | 80 |
 | Butterfly diving | 160 |
 | Boss in formation | 150 |
-| Boss diving alone | 400 |
-| Boss + 1 escort | 800 |
-| Boss + 2 escorts | 1600 |
+| Boss diving | 400 |
 
-### 2.4 Stage progression
-- [ ] Stage counter and difficulty ramp (faster dives, more enemy shots)
+### 2.4 Stage progression ✅
+- [x] Stage counter and difficulty ramp (faster dives, more enemy shots, dual divers stage 2+)
 - [ ] Stage clear fanfare (SDL_mixer — optional)
 
 ---
@@ -112,11 +110,11 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ## Phase 4 — Polish
 
-- [ ] Authentic arcade resolution (224×288) with integer scale (×2 or ×3)
-- [ ] Starfield parallax (`asm/render_helpers.asm` or C — TBD)
+- [x] Authentic arcade resolution (224×288) with integer scale (×2)
+- [x] Starfield parallax (frame-scrolled in `src/render.c`)
 - [ ] Sound effects via SDL_mixer
-- [ ] Title screen and attract mode
-- [ ] High score persistence (file or env-based for cloud CI)
+- [x] Title screen and attract mode (phase banners)
+- [x] High score persistence (`galaga_hi.txt`)
 
 ---
 
@@ -133,8 +131,8 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ## Immediate next PR (recommended)
 
-1. Merge Phase 1.2–1.5 PR.
-2. Open **Phase 1.6** PR: sprite rendering upgrade.
+1. **Phase 3** PR: tractor beam, dual fighter, challenging stages.
+2. **Polish** PR: SDL_mixer SFX, authentic sprites, escort scoring bonuses.
 
 ---
 

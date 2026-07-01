@@ -7,23 +7,24 @@
 
 %define MAX_ENEMIES       40
 %define MAX_BULLETS       8
+%define MAX_COLLISION_HITS 8
+%define MAX_EXPLOSIONS    12
+
+%define H_OFF_COUNT       0
+%define H_OFF_TYPE        4
+%define H_OFF_BULLET      36
+%define H_OFF_ENEMY       68
 
 %define ENTITY_KIND_ENEMY 0
 %define ENTITY_KIND_BULLET 1
 
 %define ENEMY_TYPE_BEE        0
+%define ENEMY_TYPE_BUTTERFLY  1
+%define ENEMY_TYPE_BOSS       2
+
 %define ENEMY_STATE_FORMATION 0
 %define ENEMY_STATE_DIVING    1
-
-%define GS_PLAYER         0
-%define GS_ENEMIES        28
-%define GS_BULLETS        1788
-%define GS_RUNNING        1980
-%define GS_GAME_OVER      1981
-%define GS_FRAME          1984
-%define GS_PHASE          1988
-%define GS_CLEAR_TIMER    1992
-%define GS_NEXT_EXTRA_LIFE 1996
+%define ENEMY_STATE_ENTERING  2
 
 %define GAME_PHASE_TITLE       0
 %define GAME_PHASE_PLAYING     1
@@ -34,20 +35,18 @@
 %define HIT_ENEMY_BULLET_PLAYER 1
 %define HIT_ENEMY_BODY_PLAYER   2
 
-%define H_OFF_COUNT       0
-%define H_OFF_TYPE        4
-%define H_OFF_BULLET      36
-%define H_OFF_ENEMY       68
-%define MAX_COLLISION_HITS 8
+%define GS_PLAYER         0
+%define GS_ENEMIES        28
+%define GS_BULLETS        1948
+%define GS_RUNNING        2140
+%define GS_GAME_OVER      2141
+%define GS_FRAME          2144
+%define GS_PHASE          2148
+%define GS_CLEAR_TIMER    2152
+%define GS_NEXT_EXTRA_LIFE 2156
+%define GS_HIGH_SCORE     2160
 
-%define SCORE_BEE_FORMATION 50
-%define SCORE_BEE_DIVING    100
-%define EXTRA_LIFE_1        20000
-%define EXTRA_LIFE_2        70000
-%define EXTRA_LIFE_3        150000
-%define STAGE_CLEAR_FRAMES  90
-
-%define ENEMY_SIZE        44
+%define ENEMY_SIZE        48
 %define BULLET_SIZE       24
 
 %define E_ACTIVE          0
@@ -61,6 +60,7 @@
 %define E_HOME_Y          32
 %define E_VX              36
 %define E_FIRE_CD         40
+%define E_HP              44
 
 %define B_ACTIVE          0
 %define B_X               4
@@ -85,7 +85,6 @@
 %define BULLET_H_DEFAULT  8
 %define MAX_PLAYER_BULLETS 2
 
-; Formation layout (5 rows × 8 cols of bees)
 %define FORM_COLS         8
 %define FORM_ROWS         5
 %define FORM_START_X      16
@@ -93,5 +92,18 @@
 %define FORM_GAP_X        24
 %define FORM_GAP_Y        18
 
-%define DIVE_INTERVAL     90
+%define DIVE_INTERVAL_BASE 90
 %define DIVE_FIRE_COOLDOWN 40
+%define ENTER_DROP         24
+
+%define SCORE_BEE_FORMATION       50
+%define SCORE_BEE_DIVING          100
+%define SCORE_BUTTERFLY_FORMATION 80
+%define SCORE_BUTTERFLY_DIVING    160
+%define SCORE_BOSS_FORMATION      150
+%define SCORE_BOSS_DIVING         400
+
+%define EXTRA_LIFE_1        20000
+%define EXTRA_LIFE_2        70000
+%define EXTRA_LIFE_3        150000
+%define STAGE_CLEAR_FRAMES  90

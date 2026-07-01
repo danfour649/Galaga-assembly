@@ -28,6 +28,9 @@ set(GALAGA_C_SOURCES
     src/input.c
     src/render.c
     src/game.c
+    src/sprites.c
+    src/effects.c
+    src/highscore.c
 )
 
 if(NOT GALAGA_USE_ASM)
