@@ -70,3 +70,36 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.binary }}
           if-no-files-found: error
+
+  release:
+    name: Publish latest release
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: galaga-*
+          path: dist
+
+      - name: Rename binaries to unique filenames
+        run: |
+          mv dist/galaga-linux-x86_64/galaga dist/galaga-linux-x86_64/galaga-linux-x86_64
+          mv dist/galaga-macos/galaga dist/galaga-macos/galaga-macos
+          mv dist/galaga-windows-x86_64/galaga.exe dist/galaga-windows-x86_64/galaga-windows-x86_64.exe
+
+      - name: Publish "latest" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest build (main)
+          prerelease: true
+          make_latest: true
+          body: Automatically published from the latest successful build of `main` at ${{ github.sha }}.
+          files: |
+            dist/galaga-linux-x86_64/galaga-linux-x86_64
+            dist/galaga-macos/galaga-macos
+            dist/galaga-windows-x86_64/galaga-windows-x86_64.exe

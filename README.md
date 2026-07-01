@@ -1,6 +1,14 @@
 # Galaga-assembly
 
+[![Build](https://github.com/danfour649/Galaga-assembly/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/danfour649/Galaga-assembly/actions/workflows/build.yml)
+
 A cross-platform **Galaga** clone for Windows and macOS, built with **SDL2** and **x86-64 NASM assembly**.
+
+## Download
+
+Prebuilt binaries for Linux, macOS, and Windows are published from every successful build of `main`:
+
+**[Download the latest build](https://github.com/danfour649/Galaga-assembly/releases/tag/latest)**
 
 ## Assembly is still central
 
@@ -32,7 +40,7 @@ cmake --build build
 
 ### CI builds
 
-Every push/PR to `main` runs [GitHub Actions](.github/workflows/build.yml) on **Linux, macOS, and Windows**. Built executables are uploaded as workflow artifacts (`galaga-linux-x86_64`, `galaga-macos`, `galaga-windows-x86_64`).
+Every push/PR to `main` runs [GitHub Actions](.github/workflows/build.yml) on **Linux, macOS, and Windows**. Built executables are uploaded as workflow artifacts (`galaga-linux-x86_64`, `galaga-macos`, `galaga-windows-x86_64`) and, on a clean build of `main`, published to the [latest release](https://github.com/danfour649/Galaga-assembly/releases/tag/latest).
 
 ### Controls
 
