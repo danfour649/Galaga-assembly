@@ -11,11 +11,18 @@
 %define ENTITY_KIND_ENEMY 0
 %define ENTITY_KIND_BULLET 1
 
+%define ENEMY_TYPE_BEE        0
+%define ENEMY_STATE_FORMATION 0
+%define ENEMY_STATE_DIVING    1
+
 %define GS_PLAYER         0
 %define GS_ENEMIES        28
-%define GS_BULLETS        1148
+%define GS_BULLETS        1788
+%define GS_RUNNING        1980
+%define GS_GAME_OVER      1981
+%define GS_FRAME          1984
 
-%define ENEMY_SIZE        28
+%define ENEMY_SIZE        44
 %define BULLET_SIZE       24
 
 %define E_ACTIVE          0
@@ -24,7 +31,11 @@
 %define E_W               12
 %define E_H               16
 %define E_TYPE            20
-%define E_HP              24
+%define E_STATE           24
+%define E_HOME_X          28
+%define E_HOME_Y          32
+%define E_VX              36
+%define E_FIRE_CD         40
 
 %define B_ACTIVE          0
 %define B_X               4
@@ -41,9 +52,6 @@
 %define P_SCORE           20
 %define P_STAGE           24
 
-%define GS_RUNNING        1340
-%define GS_GAME_OVER      1341
-
 %define PLAYER_START_LIVES 3
 
 %define ENEMY_W_DEFAULT   14
@@ -51,3 +59,14 @@
 %define BULLET_W_DEFAULT  3
 %define BULLET_H_DEFAULT  8
 %define MAX_PLAYER_BULLETS 2
+
+; Formation layout (5 rows × 8 cols of bees)
+%define FORM_COLS         8
+%define FORM_ROWS         5
+%define FORM_START_X      16
+%define FORM_START_Y      28
+%define FORM_GAP_X        24
+%define FORM_GAP_Y        18
+
+%define DIVE_INTERVAL     90
+%define DIVE_FIRE_COOLDOWN 40

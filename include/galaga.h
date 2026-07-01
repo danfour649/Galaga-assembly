@@ -15,6 +15,10 @@
 #define ENTITY_KIND_ENEMY  0
 #define ENTITY_KIND_BULLET 1
 
+#define ENEMY_TYPE_BEE       0
+#define ENEMY_STATE_FORMATION 0
+#define ENEMY_STATE_DIVING    1
+
 typedef struct {
     int x, y, w, h;
 } Rect;
@@ -23,8 +27,12 @@ typedef struct {
     bool active;
     int  x, y;
     int  w, h;
-    int  type;   /* 0=bee, 1=butterfly, 2=boss (future) */
-    int  hp;
+    int  type;
+    int  state;
+    int  home_x;
+    int  home_y;
+    int  vx;
+    int  fire_cd;
 } Enemy;
 
 typedef struct {
@@ -43,31 +51,32 @@ typedef struct {
 } Player;
 
 typedef struct {
-    Player  player;
-    Enemy   enemies[MAX_ENEMIES];
-    Bullet  bullets[MAX_BULLETS];
-    bool    running;
-    bool    game_over;
+    Player   player;
+    Enemy    enemies[MAX_ENEMIES];
+    Bullet   bullets[MAX_BULLETS];
+    bool     running;
+    bool     game_over;
+    uint32_t frame;
 } GameState;
 
 /* --- Assembly-backed (or C fallback) --- */
 
-/* Returns 1 if rectangles overlap, 0 otherwise. */
 int rect_overlap(const Rect *a, const Rect *b);
 
-/* Entity pool (asm/entities.asm) */
 int  entity_spawn(GameState *state, int kind, int type, int x, int y);
 void entity_kill(GameState *state, int kind, int index);
 void entity_tick_all(GameState *state, int delta_px);
 int  entity_any_active(const GameState *state, int kind);
 void entities_spawn_demo_formation(GameState *state);
 
-/* Player (asm/player.asm) */
 void player_init(GameState *state);
 void player_clamp_x(Player *player);
 void player_tick(GameState *state, int delta_px, int move_left, int move_right);
 void player_try_fire(GameState *state);
 int  player_lose_life(GameState *state);
+
+void enemies_spawn_formation(GameState *state);
+void enemies_tick_all(GameState *state, int delta_px);
 
 /* --- C-only modules --- */
 

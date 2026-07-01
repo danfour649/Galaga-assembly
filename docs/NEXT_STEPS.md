@@ -41,11 +41,11 @@ Goal: one screen, shoot enemies, score, lives, game over.
 - [x] Fire rate limit (max 2 bullets on screen — classic Galaga)
 - [x] Lives counter (start: 3)
 
-### 1.3 Enemies (single type first)
-- [ ] One enemy type (Bee) in a static 5×8 formation grid
-- [ ] `asm/enemies.asm`: formation positions, idle wobble
-- [ ] Random dive attack: enemy leaves formation, follows simple path toward player
-- [ ] Enemy fires downward while diving
+### 1.3 Enemies (single type first) ✅
+- [x] One enemy type (Bee) in a static 5×8 formation grid
+- [x] `asm/enemies.asm`: formation positions, idle wobble
+- [x] Random dive attack: enemy leaves formation, follows simple path toward player
+- [x] Enemy fires downward while diving
 
 ### 1.4 Collision (extend existing)
 - [ ] `asm/collision.asm`: bullet↔enemy, bullet↔player, enemy body↔player
@@ -133,8 +133,8 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ## Immediate next PR (recommended)
 
-1. Merge Phase 1.2 PR (player asm + CI).
-2. Open **Phase 1.3** PR: Bee formation and dive AI in `asm/enemies.asm`.
+1. Merge Phase 1.2–1.3 PR (player + enemies asm + CI).
+2. Open **Phase 1.4** PR: collision resolution in `asm/collision.asm`.
 
 ---
 

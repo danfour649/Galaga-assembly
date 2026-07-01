@@ -29,7 +29,11 @@ int entity_spawn(GameState *state, int kind, int type, int x, int y)
             e->w = 14;
             e->h = 14;
             e->type = type;
-            e->hp = 1;
+            e->state = ENEMY_STATE_FORMATION;
+            e->home_x = x;
+            e->home_y = y;
+            e->vx = 0;
+            e->fire_cd = 0;
             return i;
         }
         return -1;
@@ -169,6 +173,65 @@ int player_lose_life(GameState *state)
     if (state->player.lives <= 0)
         state->game_over = true;
     return state->player.lives;
+}
+
+void enemies_spawn_formation(GameState *state)
+{
+    for (int row = 0; row < 5; row++) {
+        for (int col = 0; col < 8; col++) {
+            entity_spawn(
+                state,
+                ENTITY_KIND_ENEMY,
+                ENEMY_TYPE_BEE,
+                16 + col * 24,
+                28 + row * 18
+            );
+        }
+    }
+}
+
+void enemies_tick_all(GameState *state, int delta_px)
+{
+    uint32_t frame = state->frame++;
+
+    if (frame % 90 == 0) {
+        int idx = (int)((frame / 90) % MAX_ENEMIES);
+        Enemy *e = &state->enemies[idx];
+        if (e->active && e->state == ENEMY_STATE_FORMATION) {
+            int dx = state->player.x - e->x;
+            e->state = ENEMY_STATE_DIVING;
+            e->vx = (dx > 0) ? 2 : (dx < 0) ? -2 : 0;
+            e->fire_cd = 20;
+        }
+    }
+
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        Enemy *e = &state->enemies[i];
+        if (!e->active)
+            continue;
+
+        if (e->state == ENEMY_STATE_DIVING) {
+            e->x += e->vx;
+            e->y += delta_px;
+            if (e->fire_cd > 0) {
+                e->fire_cd--;
+            } else {
+                int bx = e->x + e->w / 2 - 1;
+                int by = e->y + e->h;
+                entity_spawn(state, ENTITY_KIND_BULLET, 0, bx, by);
+                e->fire_cd = 40;
+            }
+            if (e->y >= GALAGA_HEIGHT) {
+                e->state = ENEMY_STATE_FORMATION;
+                e->x = e->home_x;
+                e->y = e->home_y;
+                e->vx = 0;
+            }
+        } else {
+            e->x = e->home_x + (int)((frame + i) % 4) - 1;
+            e->y = e->home_y + (int)(((frame >> 2) + i) % 2);
+        }
+    }
 }
 
 #endif

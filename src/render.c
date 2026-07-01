@@ -86,8 +86,7 @@ void render_frame(const GameState *state)
         if (!e->active)
             continue;
         Uint8 r = 80, g = 200, b = 80;
-        if (e->type == 1) { r = 220; g = 200; b = 60; }
-        if (e->type == 2) { r = 220; g = 60;  b = 60; }
+        if (e->state == ENEMY_STATE_DIVING) { r = 120; g = 255; b = 120; }
         draw_rect(e->x, e->y, e->w, e->h, r, g, b);
     }
 
