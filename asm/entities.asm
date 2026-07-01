@@ -66,6 +66,13 @@ entity_spawn:
     mov     [rax + E_HOME_Y], r11d
     mov     dword [rax + E_VX], 0
     mov     dword [rax + E_FIRE_CD], 0
+    cmp     ARG_TYPE, ENEMY_TYPE_BOSS
+    je      .hp_boss
+    mov     dword [rax + E_HP], 1
+    jmp     .hp_done
+.hp_boss:
+    mov     dword [rax + E_HP], 2
+.hp_done:
     mov     eax, ecx
     pop     rbx
     ret

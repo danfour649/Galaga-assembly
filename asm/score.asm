@@ -12,9 +12,6 @@
 
 section .text
 
-;------------------------------------------------------------------------------
-; void score_add_points(GameState *state, int points)
-;------------------------------------------------------------------------------
 global score_add_points
 score_add_points:
     push    rbx
@@ -63,9 +60,25 @@ score_add_enemy_kill:
     imul    eax, ENEMY_SIZE
     lea     rax, [rbx + rax + GS_ENEMIES]
     mov     edx, SCORE_BEE_FORMATION
+    cmp     dword [rax + E_TYPE], ENEMY_TYPE_BUTTERFLY
+    je      .butterfly
+    cmp     dword [rax + E_TYPE], ENEMY_TYPE_BOSS
+    je      .boss
     cmp     dword [rax + E_STATE], ENEMY_STATE_DIVING
     jne     .add
     mov     edx, SCORE_BEE_DIVING
+    jmp     .add
+.butterfly:
+    mov     edx, SCORE_BUTTERFLY_FORMATION
+    cmp     dword [rax + E_STATE], ENEMY_STATE_DIVING
+    jne     .add
+    mov     edx, SCORE_BUTTERFLY_DIVING
+    jmp     .add
+.boss:
+    mov     edx, SCORE_BOSS_FORMATION
+    cmp     dword [rax + E_STATE], ENEMY_STATE_DIVING
+    jne     .add
+    mov     edx, SCORE_BOSS_DIVING
 .add:
 %ifidn __OUTPUT_FORMAT__,win64
     mov     rcx, rbx

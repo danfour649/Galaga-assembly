@@ -10,6 +10,9 @@ jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
     strategy:
       fail-fast: false
       matrix:
@@ -40,14 +43,12 @@ jobs:
             name: Windows x86_64
             os: windows-latest
             shell: msys2 {0}
-            install: |
-              pacman -Syu --noconfirm
-              pacman -S --needed --noconfirm \
-                mingw-w64-ucrt-x86_64-toolchain \
-                mingw-w64-ucrt-x86_64-cmake \
-                mingw-w64-ucrt-x86_64-ninja \
-                mingw-w64-ucrt-x86_64-SDL2 \
-                mingw-w64-ucrt-x86_64-nasm
+            msys2-packages: >-
+              mingw-w64-ucrt-x86_64-toolchain
+              mingw-w64-ucrt-x86_64-cmake
+              mingw-w64-ucrt-x86_64-ninja
+              mingw-w64-ucrt-x86_64-SDL2
+              mingw-w64-ucrt-x86_64-nasm
             configure: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
             binary: build/galaga.exe
             artifact: galaga-windows-x86_64
@@ -55,7 +56,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up MSYS2
+        if: matrix.id == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: ${{ matrix.msys2-packages }}
+
       - name: Install dependencies
+        if: matrix.id != 'windows'
         run: ${{ matrix.install }}
 
       - name: Configure

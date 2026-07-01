@@ -34,6 +34,7 @@ int entity_spawn(GameState *state, int kind, int type, int x, int y)
             e->home_y = y;
             e->vx = 0;
             e->fire_cd = 0;
+            e->hp = (type == ENEMY_TYPE_BOSS) ? 2 : 1;
             return i;
         }
         return -1;
@@ -177,40 +178,88 @@ int player_lose_life(GameState *state)
     return state->player.lives;
 }
 
+static int row_to_type(int row)
+{
+    if (row == 0)
+        return ENEMY_TYPE_BOSS;
+    if (row >= 3)
+        return ENEMY_TYPE_BEE;
+    return ENEMY_TYPE_BUTTERFLY;
+}
+
+static void setup_entering(Enemy *e)
+{
+    e->state = ENEMY_STATE_ENTERING;
+    e->y -= 24;
+}
+
 void enemies_spawn_formation(GameState *state)
 {
     for (int row = 0; row < 5; row++) {
         for (int col = 0; col < 8; col++) {
-            entity_spawn(
+            int idx = entity_spawn(
                 state,
                 ENTITY_KIND_ENEMY,
-                ENEMY_TYPE_BEE,
+                row_to_type(row),
                 16 + col * 24,
                 28 + row * 18
             );
+            if (idx >= 0)
+                setup_entering(&state->enemies[idx]);
         }
     }
+}
+
+static void start_dive(GameState *state, Enemy *e)
+{
+    int dx = state->player.x - e->x;
+    if (e->type == ENEMY_TYPE_BUTTERFLY)
+        e->vx = (dx >= 0) ? 3 : -3;
+    else
+        e->vx = (dx >= 0) ? 2 : -2;
+    e->state = ENEMY_STATE_DIVING;
+    e->fire_cd = 20;
 }
 
 void enemies_tick_all(GameState *state, int delta_px)
 {
     uint32_t frame = state->frame++;
 
-    if (frame % 90 == 0) {
-        int idx = (int)((frame / 90) % MAX_ENEMIES);
+    int stage = state->player.stage;
+    int dive_interval = 90 - stage * 6;
+    if (dive_interval < 35)
+        dive_interval = 35;
+
+    if (frame % (uint32_t)dive_interval == 0) {
+        int idx = (int)((frame / (uint32_t)dive_interval) % MAX_ENEMIES);
         Enemy *e = &state->enemies[idx];
-        if (e->active && e->state == ENEMY_STATE_FORMATION) {
-            int dx = state->player.x - e->x;
-            e->state = ENEMY_STATE_DIVING;
-            e->vx = (dx > 0) ? 2 : (dx < 0) ? -2 : 0;
-            e->fire_cd = 20;
+        if (e->active && e->state == ENEMY_STATE_FORMATION)
+            start_dive(state, e);
+        if (stage >= 2) {
+            idx = (idx + 7) % MAX_ENEMIES;
+            e = &state->enemies[idx];
+            if (e->active && e->state == ENEMY_STATE_FORMATION)
+                start_dive(state, e);
         }
     }
+
+    int fire_cd_base = 40 - (stage >> 1);
+    if (fire_cd_base < 15)
+        fire_cd_base = 15;
 
     for (int i = 0; i < MAX_ENEMIES; i++) {
         Enemy *e = &state->enemies[i];
         if (!e->active)
             continue;
+
+        if (e->state == ENEMY_STATE_ENTERING) {
+            e->y += delta_px;
+            if (e->y >= e->home_y) {
+                e->y = e->home_y;
+                e->state = ENEMY_STATE_FORMATION;
+            }
+            continue;
+        }
 
         if (e->state == ENEMY_STATE_DIVING) {
             e->x += e->vx;
@@ -221,7 +270,7 @@ void enemies_tick_all(GameState *state, int delta_px)
                 int bx = e->x + e->w / 2 - 1;
                 int by = e->y + e->h;
                 entity_spawn(state, ENTITY_KIND_BULLET, 0, bx, by);
-                e->fire_cd = 40;
+                e->fire_cd = fire_cd_base;
             }
             if (e->y >= GALAGA_HEIGHT) {
                 e->state = ENEMY_STATE_FORMATION;
@@ -239,7 +288,20 @@ void enemies_tick_all(GameState *state, int delta_px)
 static void score_add_enemy_kill(GameState *state, int enemy_index)
 {
     const Enemy *e = &state->enemies[enemy_index];
-    int points = (e->state == ENEMY_STATE_DIVING) ? SCORE_BEE_DIVING : SCORE_BEE_FORMATION;
+    int diving = (e->state == ENEMY_STATE_DIVING);
+    int points;
+
+    switch (e->type) {
+    case ENEMY_TYPE_BUTTERFLY:
+        points = diving ? SCORE_BUTTERFLY_DIVING : SCORE_BUTTERFLY_FORMATION;
+        break;
+    case ENEMY_TYPE_BOSS:
+        points = diving ? SCORE_BOSS_DIVING : SCORE_BOSS_FORMATION;
+        break;
+    default:
+        points = diving ? SCORE_BEE_DIVING : SCORE_BEE_FORMATION;
+        break;
+    }
     score_add_points(state, points);
 }
 
@@ -288,9 +350,14 @@ void collision_resolve(GameState *state, CollisionHits *hits)
                 continue;
             if (boxes_overlap(b->x, b->y, b->w, b->h, e->x, e->y, e->w, e->h)) {
                 record_hit(hits, HIT_PLAYER_BULLET_ENEMY, bi, ei);
-                score_add_enemy_kill(state, ei);
-                entity_kill(state, ENTITY_KIND_BULLET, bi);
-                entity_kill(state, ENTITY_KIND_ENEMY, ei);
+                if (e->hp > 1) {
+                    e->hp--;
+                    entity_kill(state, ENTITY_KIND_BULLET, bi);
+                } else {
+                    score_add_enemy_kill(state, ei);
+                    entity_kill(state, ENTITY_KIND_BULLET, bi);
+                    entity_kill(state, ENTITY_KIND_ENEMY, ei);
+                }
             }
         }
     }
@@ -357,6 +424,7 @@ void game_state_tick(GameState *state, int fire_pressed)
         if (state->clear_timer > 0)
             state->clear_timer--;
         else {
+            state->player.stage++;
             state->phase = GAME_PHASE_PLAYING;
             enemies_spawn_formation(state);
         }

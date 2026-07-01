@@ -144,6 +144,8 @@ collision_resolve:
     call    overlap_boxes_at
     test    eax, eax
     jz      .pb_next_e
+    cmp     dword [r11 + E_HP], 1
+    jg      .pb_hurt
     mov     eax, HIT_PLAYER_BULLET_ENEMY
     push    rbx
     mov     ebx, r12d
@@ -159,6 +161,19 @@ collision_resolve:
     call    entity_kill
     mov     edx, r14d
     mov     esi, ENTITY_KIND_ENEMY
+    mov     rdi, rbx
+    call    entity_kill
+    jmp     .pb_next_e
+.pb_hurt:
+    dec     dword [r11 + E_HP]
+    mov     eax, HIT_PLAYER_BULLET_ENEMY
+    push    rbx
+    mov     ebx, r12d
+    mov     ecx, r14d
+    RECORD_HIT
+    pop     rbx
+    mov     edx, r12d
+    mov     esi, ENTITY_KIND_BULLET
     mov     rdi, rbx
     call    entity_kill
 .pb_next_e:
