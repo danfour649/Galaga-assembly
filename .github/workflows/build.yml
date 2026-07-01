@@ -1,0 +1,72 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux
+            name: Linux x86_64
+            os: ubuntu-latest
+            shell: bash
+            install: |
+              sudo apt-get update
+              sudo apt-get install -y cmake ninja-build libsdl2-dev nasm
+            configure: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+            binary: build/galaga
+            artifact: galaga-linux-x86_64
+
+          - id: macos
+            name: macOS
+            os: macos-latest
+            shell: bash
+            install: |
+              brew install cmake ninja sdl2
+              brew install nasm || true
+            configure: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+            binary: build/galaga
+            artifact: galaga-macos
+
+          - id: windows
+            name: Windows x86_64
+            os: windows-latest
+            shell: msys2 {0}
+            install: |
+              pacman -Syu --noconfirm
+              pacman -S --needed --noconfirm \
+                mingw-w64-ucrt-x86_64-toolchain \
+                mingw-w64-ucrt-x86_64-cmake \
+                mingw-w64-ucrt-x86_64-ninja \
+                mingw-w64-ucrt-x86_64-SDL2 \
+                mingw-w64-ucrt-x86_64-nasm
+            configure: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+            binary: build/galaga.exe
+            artifact: galaga-windows-x86_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: ${{ matrix.install }}
+
+      - name: Configure
+        run: ${{ matrix.configure }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error

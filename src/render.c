@@ -86,8 +86,7 @@ void render_frame(const GameState *state)
         if (!e->active)
             continue;
         Uint8 r = 80, g = 200, b = 80;
-        if (e->type == 1) { r = 220; g = 200; b = 60; }
-        if (e->type == 2) { r = 220; g = 60;  b = 60; }
+        if (e->state == ENEMY_STATE_DIVING) { r = 120; g = 255; b = 120; }
         draw_rect(e->x, e->y, e->w, e->h, r, g, b);
     }
 
@@ -109,8 +108,14 @@ void render_frame(const GameState *state)
     SDL_RenderFillRect(renderer, &hud);
 
     char buf[128];
-    snprintf(buf, sizeof(buf), "SCORE %d   LIVES %d   STAGE %d   [asm]",
+    snprintf(buf, sizeof(buf), "SCORE %d   LIVES %d   STAGE %d",
              state->player.score, state->player.lives, state->player.stage);
+    if (state->phase == GAME_PHASE_TITLE)
+        strncat(buf, "   PRESS FIRE", sizeof(buf) - strlen(buf) - 1);
+    else if (state->phase == GAME_PHASE_STAGE_CLEAR)
+        strncat(buf, "   STAGE CLEAR", sizeof(buf) - strlen(buf) - 1);
+    else if (state->phase == GAME_PHASE_GAME_OVER)
+        strncat(buf, "   GAME OVER", sizeof(buf) - strlen(buf) - 1);
     (void)buf; /* TODO: SDL_ttf for text; HUD values visible via window title for now */
 
     SDL_SetWindowTitle(window, buf);
@@ -120,6 +125,16 @@ void render_frame(const GameState *state)
         SDL_Rect overlay = { 0, GALAGA_HEIGHT * GALAGA_SCALE / 2 - 20,
                              GALAGA_WIDTH * GALAGA_SCALE, 40 };
         SDL_RenderFillRect(renderer, &overlay);
+    } else if (state->phase == GAME_PHASE_TITLE) {
+        SDL_SetRenderDrawColor(renderer, 40, 40, 120, 200);
+        SDL_Rect banner = { 20, GALAGA_HEIGHT * GALAGA_SCALE / 2 - 30,
+                            GALAGA_WIDTH * GALAGA_SCALE - 40, 60 };
+        SDL_RenderFillRect(renderer, &banner);
+    } else if (state->phase == GAME_PHASE_STAGE_CLEAR) {
+        SDL_SetRenderDrawColor(renderer, 40, 120, 40, 180);
+        SDL_Rect banner = { 20, GALAGA_HEIGHT * GALAGA_SCALE / 2 - 20,
+                            GALAGA_WIDTH * GALAGA_SCALE - 40, 40 };
+        SDL_RenderFillRect(renderer, &banner);
     }
 
     SDL_RenderPresent(renderer);

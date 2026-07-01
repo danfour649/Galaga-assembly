@@ -36,24 +36,24 @@ Goal: one screen, shoot enemies, score, lives, game over.
   - `entity_tick_all(delta)`
 - [x] C glue in `game.c` only marshals structs; no gameplay logic in C
 
-### 1.2 Player
-- [ ] Clamp movement to playfield bounds (asm: `player_clamp_x`)
-- [ ] Fire rate limit (max 2 bullets on screen — classic Galaga)
-- [ ] Lives counter (start: 3)
+### 1.2 Player ✅
+- [x] Clamp movement to playfield bounds (asm: `player_clamp_x`)
+- [x] Fire rate limit (max 2 bullets on screen — classic Galaga)
+- [x] Lives counter (start: 3)
 
-### 1.3 Enemies (single type first)
-- [ ] One enemy type (Bee) in a static 5×8 formation grid
-- [ ] `asm/enemies.asm`: formation positions, idle wobble
-- [ ] Random dive attack: enemy leaves formation, follows simple path toward player
-- [ ] Enemy fires downward while diving
+### 1.3 Enemies (single type first) ✅
+- [x] One enemy type (Bee) in a static 5×8 formation grid
+- [x] `asm/enemies.asm`: formation positions, idle wobble
+- [x] Random dive attack: enemy leaves formation, follows simple path toward player
+- [x] Enemy fires downward while diving
 
-### 1.4 Collision (extend existing)
-- [ ] `asm/collision.asm`: bullet↔enemy, bullet↔player, enemy body↔player
-- [ ] Return hit indices so C/render can play effects (no logic in render)
+### 1.4 Collision (extend existing) ✅
+- [x] `asm/collision.asm`: bullet↔enemy, bullet↔player, enemy body↔player
+- [x] Return hit indices so C/render can play effects (no logic in render)
 
-### 1.5 Score & game state
-- [ ] `asm/score.asm`: add points, extra life at 20k/70k/150k
-- [ ] State machine: `TITLE → PLAYING → STAGE_CLEAR → GAME_OVER`
+### 1.5 Score & game state ✅
+- [x] `asm/score.asm`: add points, extra life at 20k/70k/150k
+- [x] State machine: `TITLE → PLAYING → STAGE_CLEAR → GAME_OVER`
 
 ### 1.6 Rendering upgrade
 - [ ] Replace colored rects with placeholder 16×16 bitmap sprites (`assets/`)
@@ -133,9 +133,8 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ## Immediate next PR (recommended)
 
-1. Merge this scaffold PR.
-2. Open **Phase 1.1** PR: entity pools in `asm/entities.asm`.
-3. Keep each PR runnable — no long-lived broken branches.
+1. Merge Phase 1.2–1.5 PR.
+2. Open **Phase 1.6** PR: sprite rendering upgrade.
 
 ---
 

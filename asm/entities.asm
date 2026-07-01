@@ -61,7 +61,11 @@ entity_spawn:
     mov     dword [rax + E_W], ENEMY_W_DEFAULT
     mov     dword [rax + E_H], ENEMY_H_DEFAULT
     mov     [rax + E_TYPE], ARG_TYPE
-    mov     dword [rax + E_HP], 1
+    mov     dword [rax + E_STATE], ENEMY_STATE_FORMATION
+    mov     [rax + E_HOME_X], ARG_X
+    mov     [rax + E_HOME_Y], r11d
+    mov     dword [rax + E_VX], 0
+    mov     dword [rax + E_FIRE_CD], 0
     mov     eax, ecx
     pop     rbx
     ret

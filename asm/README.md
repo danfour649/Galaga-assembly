@@ -6,6 +6,10 @@ NASM x86-64 sources for gameplay logic. Built automatically by CMake when NASM i
 |------|--------|---------|
 | `collision.asm` | **Implemented** | AABB overlap (`rect_overlap`) |
 | `entities.asm` | **Implemented** | Entity pools: spawn, kill, tick, demo formation |
+| `player.asm` | **Implemented** | Movement, clamp, fire, lives |
+| `enemies.asm` | **Implemented** | Bee formation, wobble, dive, enemy fire |
+| `score.asm` | **Implemented** | Points, extra lives at 20k/70k/150k |
+| `game_state.asm` | **Implemented** | Title / playing / stage clear / game over |
 | `enemies.asm` | Planned | Formation, dive AI, tractor beam |
 | `score.asm` | Planned | Points and extra lives |
 
