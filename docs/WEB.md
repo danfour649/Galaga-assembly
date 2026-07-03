@@ -4,11 +4,16 @@ The browser build uses **Emscripten** to compile the C/SDL shell and **`game_fal
 
 ## Prerequisites
 
-Install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) and activate it in your shell:
+Install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) and activate it in your shell. CI pins **3.1.57**; use the same version locally for identical output:
 
 ```bash
-source /path/to/emsdk/emsdk_env.sh
+git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
+~/emsdk/emsdk install 3.1.57
+~/emsdk/emsdk activate 3.1.57
+source ~/emsdk/emsdk_env.sh
 ```
+
+`emcmake` also needs `cmake` and `ninja` on PATH. On Windows the MSYS2 UCRT64 ones work (`export PATH="/c/msys64/ucrt64/bin:$PATH"` in Git Bash — see the README's Windows prerequisites); emsdk provides its own node and python.
 
 ## Build
 

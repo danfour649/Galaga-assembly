@@ -37,7 +37,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full split. On Apple Si
 |----------|---------|
 | **Linux** | `sudo apt install build-essential cmake libsdl2-dev nasm` |
 | **macOS** | `brew install cmake sdl2 nasm` |
-| **Windows** | [CMake](https://cmake.org/), [SDL2 via vcpkg](https://vcpkg.io/), [NASM](https://www.nasm.us/) |
+| **Windows** | [MSYS2](https://www.msys2.org/) (`winget install MSYS2.MSYS2`), then from any shell: `C:\msys64\usr\bin\pacman -S --needed mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-nasm` |
 | **Web** | [Emscripten SDK](https://emscripten.org/) — see [docs/WEB.md](docs/WEB.md) |
 
 ### Build & run
@@ -46,7 +46,17 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full split. On Apple Si
 cmake -B build
 cmake --build build
 ./build/galaga          # Linux / macOS
-# build\galaga.exe      # Windows
+```
+
+On Windows, use the MSYS2 UCRT64 toolchain (same as CI). This is the CI recipe and is verified to build with the NASM assembly modules enabled:
+
+```bash
+# Git Bash / MSYS2 shell
+export PATH="/c/msys64/ucrt64/bin:$PATH"
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/galaga.exe      # needs /c/msys64/ucrt64/bin on PATH for SDL2.dll,
+                        # or copy C:\msys64\ucrt64\bin\SDL2.dll next to the exe
 ```
 
 ### Web build
