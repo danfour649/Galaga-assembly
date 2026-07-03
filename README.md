@@ -10,6 +10,8 @@ Prebuilt binaries for Linux, macOS, and Windows are published from every success
 
 **[Download the latest build](https://github.com/danfour649/Galaga-assembly/releases/tag/latest)**
 
+The Windows download is a `.zip` containing `galaga.exe` and its required `SDL2.dll` — unzip and run, no separate SDL2 install needed.
+
 ### Play in browser
 
 Every successful build of `main` deploys the WebAssembly version to GitHub Pages:

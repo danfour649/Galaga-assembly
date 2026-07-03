@@ -84,7 +84,11 @@ player_tick:
     jz      .clamp
     add     dword [rbx + P_X], r10d
 .clamp:
+%ifidn __OUTPUT_FORMAT__,win64
+    mov     rcx, rbx
+%else
     mov     rdi, rbx
+%endif
     call    player_clamp_x
     pop     rbx
     ret

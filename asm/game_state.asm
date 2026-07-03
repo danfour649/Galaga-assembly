@@ -93,12 +93,12 @@ reset_to_title:
 global game_state_tick
 game_state_tick:
     mov     rax, ST_PTR
-    mov     ecx, [rax + GS_PHASE]
-    cmp     ecx, GAME_PHASE_TITLE
+    mov     r8d, [rax + GS_PHASE]  ; scratch reg not used as an arg in either ABI (ST_PTR clobbering RCX broke win64)
+    cmp     r8d, GAME_PHASE_TITLE
     je      .title
-    cmp     ecx, GAME_PHASE_STAGE_CLEAR
+    cmp     r8d, GAME_PHASE_STAGE_CLEAR
     je      .stage_clear
-    cmp     ecx, GAME_PHASE_GAME_OVER
+    cmp     r8d, GAME_PHASE_GAME_OVER
     je      .game_over
     ret
 .title:

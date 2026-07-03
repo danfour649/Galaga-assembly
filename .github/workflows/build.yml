@@ -85,11 +85,18 @@ jobs:
       - name: Build
         run: cmake --build build
 
+      - name: Bundle runtime DLLs
+        if: matrix.id == 'windows'
+        run: |
+          mkdir -p dist/${{ matrix.artifact }}
+          cp build/galaga.exe dist/${{ matrix.artifact }}/
+          ldd build/galaga.exe | awk '/ucrt64/ {print $3}' | xargs -I{} cp {} dist/${{ matrix.artifact }}/
+
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.binary }}
+          path: ${{ matrix.id == 'windows' && format('dist/{0}/*', matrix.artifact) || matrix.binary }}
           if-no-files-found: error
 
   wasm:
@@ -180,11 +187,11 @@ jobs:
           pattern: galaga-*
           path: dist
 
-      - name: Rename binaries to unique filenames
+      - name: Package binaries for release
         run: |
           mv dist/galaga-linux-x86_64/galaga dist/galaga-linux-x86_64/galaga-linux-x86_64
           mv dist/galaga-macos/galaga dist/galaga-macos/galaga-macos
-          mv dist/galaga-windows-x86_64/galaga.exe dist/galaga-windows-x86_64/galaga-windows-x86_64.exe
+          cd dist/galaga-windows-x86_64 && zip -r ../galaga-windows-x86_64.zip . && cd ../..
 
       - name: Publish "latest" release
         uses: softprops/action-gh-release@v2
@@ -197,4 +204,4 @@ jobs:
           files: |
             dist/galaga-linux-x86_64/galaga-linux-x86_64
             dist/galaga-macos/galaga-macos
-            dist/galaga-windows-x86_64/galaga-windows-x86_64.exe
+            dist/galaga-windows-x86_64.zip
