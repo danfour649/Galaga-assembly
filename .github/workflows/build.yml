@@ -28,6 +28,17 @@ jobs:
             binary: build/galaga
             artifact: galaga-linux-x86_64
 
+          - id: linux-fallback
+            name: Linux C fallback
+            os: ubuntu-latest
+            shell: bash
+            install: |
+              sudo apt-get update
+              sudo apt-get install -y cmake ninja-build libsdl2-dev nasm
+            configure: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGALAGA_USE_ASM=OFF
+            binary: build/galaga
+            artifact: galaga-linux-fallback
+
           - id: macos
             name: macOS
             os: macos-latest
@@ -87,6 +98,80 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.id == 'windows' && format('dist/{0}/*', matrix.artifact) || matrix.binary }}
           if-no-files-found: error
+
+  wasm:
+    name: WebAssembly (Emscripten)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.57
+
+      - name: Configure
+        run: emcmake cmake -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build-web
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: galaga-wasm
+          path: |
+            build-web/galaga.html
+            build-web/galaga.js
+            build-web/galaga.wasm
+          if-no-files-found: error
+
+  pages:
+    name: Deploy GitHub Pages
+    needs: wasm
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: galaga-wasm
+          path: build-web
+
+      - name: Add site index
+        run: |
+          cat > build-web/index.html <<'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=galaga.html">
+            <title>Galaga-assembly</title>
+          </head>
+          <body>
+            <p><a href="galaga.html">Play Galaga-assembly</a></p>
+          </body>
+          </html>
+          EOF
+          touch build-web/.nojekyll
+
+      - name: Set up Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build-web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   release:
     name: Publish latest release

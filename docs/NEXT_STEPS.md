@@ -120,12 +120,13 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ## Platform checklist
 
-| Task | Windows | macOS (Intel) | macOS (ARM) | Linux |
-|------|---------|---------------|-------------|-------|
-| SDL2 install | vcpkg / MSYS2 | `brew install sdl2` | same | `apt install libsdl2-dev` |
-| NASM install | nasm.us | `brew install nasm` | same | `apt install nasm` |
-| Build | CMake + MSVC or MinGW | CMake + clang | C fallback (no asm yet) | CMake + gcc |
-| Run | `galaga.exe` | `./galaga` | `./galaga` | `./galaga` |
+| Task | Windows | macOS (Intel) | macOS (ARM) | Linux | Web (WASM) |
+|------|---------|---------------|-------------|-------|------------|
+| SDL2 install | vcpkg / MSYS2 | `brew install sdl2` | same | `apt install libsdl2-dev` | Emscripten `-sUSE_SDL=2` |
+| NASM install | nasm.us | `brew install nasm` | optional | `apt install nasm` | n/a |
+| Build | CMake + MSVC or MinGW | CMake + clang | C fallback | CMake + gcc | `emcmake` (see `docs/WEB.md`) |
+| Run | `galaga.exe` | `./galaga` | `./galaga` | `./galaga` | [GitHub Pages](https://danfour649.github.io/Galaga-assembly/galaga.html) |
+| Gameplay | `asm/*.asm` | `asm/*.asm` | `game_fallback.c` | `asm/*.asm` | `game_fallback.c` |
 
 ---
 

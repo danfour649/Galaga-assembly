@@ -13,8 +13,10 @@ void input_poll(bool *move_left, bool *move_right, bool *fire, bool *quit)
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT)
             *quit = true;
+#ifndef __EMSCRIPTEN__
         if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
             *quit = true;
+#endif
     }
 
     const Uint8 *keys = SDL_GetKeyboardState(NULL);

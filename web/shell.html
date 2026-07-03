@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Galaga-assembly</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            background: #0a0a18;
+            color: #c8d0e8;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+        #canvas {
+            border: 2px solid #2a2a48;
+            background: #000;
+            max-width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+        #status {
+            font-size: 0.875rem;
+            color: #8890a8;
+        }
+        .help {
+            font-size: 0.8rem;
+            color: #6a7290;
+            text-align: center;
+            line-height: 1.5;
+        }
+        kbd {
+            background: #1a1a30;
+            border: 1px solid #3a3a58;
+            border-radius: 3px;
+            padding: 0.1em 0.35em;
+            font-size: 0.85em;
+        }
+    </style>
+    {{{ SCRIPT }}}
+</head>
+<body>
+    <h1>Galaga-assembly</h1>
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    <div id="status">Loading…</div>
+    <p class="help">
+        Click the game to focus, then use <kbd>←</kbd><kbd>→</kbd> or <kbd>A</kbd><kbd>D</kbd> to move,
+        <kbd>Space</kbd> to fire.<br>
+        Gameplay runs in C with assembly logic mirrored by portable fallbacks for the web build.
+    </p>
+    <script>
+        var statusEl = document.getElementById('status');
+        var canvas = document.getElementById('canvas');
+        canvas.addEventListener('click', function () { canvas.focus(); });
+        Module = {
+            canvas: canvas,
+            setStatus: function (text) {
+                if (statusEl) statusEl.textContent = text;
+            },
+            onRuntimeInitialized: function () {
+                if (statusEl) statusEl.textContent = 'Click the game, then press Space to start';
+            }
+        };
+    </script>
+</body>
+</html>

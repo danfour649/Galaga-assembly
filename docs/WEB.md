@@ -1,0 +1,79 @@
+# Web build (Emscripten / WebAssembly)
+
+The browser build uses **Emscripten** to compile the C/SDL shell and **`game_fallback.c`** gameplay implementations to WebAssembly. NASM x86-64 modules are not linked on the web target (same strategy as Apple Silicon).
+
+## Prerequisites
+
+Install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) and activate it in your shell. CI pins **3.1.57**; use the same version locally for identical output:
+
+```bash
+git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
+~/emsdk/emsdk install 3.1.57
+~/emsdk/emsdk activate 3.1.57
+source ~/emsdk/emsdk_env.sh
+```
+
+`emcmake` also needs `cmake` and `ninja` on PATH. On Windows the MSYS2 UCRT64 ones work (`export PATH="/c/msys64/ucrt64/bin:$PATH"` in Git Bash — see the README's Windows prerequisites); emsdk provides its own node and python.
+
+## Build
+
+From the repository root:
+
+```bash
+emcmake cmake -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-web
+```
+
+Output files:
+
+| File | Purpose |
+|------|---------|
+| `build-web/galaga.html` | Page shell (`web/shell.html` + loader) |
+| `build-web/galaga.js` | Emscripten runtime and SDL glue |
+| `build-web/galaga.wasm` | Game binary (C fallbacks + SDL) |
+
+## Run locally
+
+Serve the build directory over HTTP (required for WASM MIME type):
+
+```bash
+python3 -m http.server 8080 --directory build-web
+```
+
+Open `http://localhost:8080/galaga.html`, click the canvas to focus, then play.
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| Left / A | Move left |
+| Right / D | Move right |
+| Space | Fire / start / continue |
+
+Escape does not quit the browser build (unlike desktop).
+
+## High scores
+
+Desktop builds persist to `galaga_hi.txt`. The web build uses `localStorage` under the key `galaga_hi`.
+
+## CI
+
+Every push/PR compiles the WASM target in GitHub Actions (`wasm` job) and uploads `galaga-wasm` artifacts. A separate **Linux C fallback** job builds with `-DGALAGA_USE_ASM=OFF` to catch parity drift before WASM.
+
+## Play online (GitHub Pages)
+
+Every push to `main` deploys the WASM build to GitHub Pages via the `pages` job in [`.github/workflows/build.yml`](../.github/workflows/build.yml).
+
+**[Play Galaga-assembly](https://danfour649.github.io/Galaga-assembly/galaga.html)**
+
+The site root (`/Galaga-assembly/`) redirects to `galaga.html`. Pages must be enabled in the repository settings with **Source: GitHub Actions** (the first deploy configures this automatically on most repos).
+
+## Future assets
+
+When bitmap/audio assets land in `assets/`, add Emscripten preload to `CMakeLists.txt`:
+
+```cmake
+target_link_options(galaga PRIVATE --preload-file "${CMAKE_SOURCE_DIR}/assets@/assets")
+```
+
+Load files from `/assets/...` in C only (not assembly).
