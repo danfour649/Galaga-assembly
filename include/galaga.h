@@ -148,7 +148,7 @@ void sprites_shutdown(void);
 struct SDL_Texture *sprites_player(void);
 struct SDL_Texture *sprites_bullet(void);
 struct SDL_Texture *sprites_enemy_bullet(void);
-struct SDL_Texture *sprites_enemy(int type);
+struct SDL_Texture *sprites_enemy(int type, int frame, int hp);
 void render_init(void);
 void render_shutdown(void);
 void render_frame(const GameState *state);

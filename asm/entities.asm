@@ -190,10 +190,14 @@ entity_tick_all:
     je      .tick_next
     cmp     byte [rax + B_FROM_PLAYER], 0
     je      .tick_down
-    sub     dword [rax + B_Y], r9d
+    lea     r10d, [r9d + r9d*2]        ; player bullets travel 3x delta
+    sub     dword [rax + B_Y], r10d
     jmp     .tick_bounds
 .tick_down:
-    add     dword [rax + B_Y], r9d
+    mov     r10d, r9d                  ; enemy bullets travel 1.5x delta
+    shr     r10d, 1
+    add     r10d, r9d
+    add     dword [rax + B_Y], r10d
 .tick_bounds:
     mov     r10d, [rax + B_Y]
     mov     r11d, [rax + B_H]

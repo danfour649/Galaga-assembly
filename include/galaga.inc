@@ -92,8 +92,10 @@
 %define FORM_GAP_X        24
 %define FORM_GAP_Y        18
 
-%define DIVE_INTERVAL_BASE 90
-%define DIVE_FIRE_COOLDOWN 40
+%define DIVE_INTERVAL_BASE 60
+%define DIVE_INTERVAL_MIN  24
+%define DIVE_FIRE_COOLDOWN 30
+%define DIVE_FIRE_CD_MIN   12
 %define ENTER_DROP         24
 
 %define SCORE_BEE_FORMATION       50
