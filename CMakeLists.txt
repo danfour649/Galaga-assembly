@@ -87,6 +87,17 @@ if(UNIX AND NOT APPLE AND NOT GALAGA_IS_EMSCRIPTEN)
     target_link_libraries(galaga PRIVATE m)
 endif()
 
+if(WIN32 AND NOT GALAGA_IS_EMSCRIPTEN)
+    # Put SDL2.dll next to galaga.exe so the build dir is runnable from
+    # Explorer without MSYS2/vcpkg on PATH.
+    if(TARGET SDL2::SDL2)
+        add_custom_command(TARGET galaga POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    $<TARGET_FILE:SDL2::SDL2> $<TARGET_FILE_DIR:galaga>
+        )
+    endif()
+endif()
+
 if(NOT GALAGA_IS_EMSCRIPTEN)
     install(TARGETS galaga RUNTIME DESTINATION bin)
 endif()
