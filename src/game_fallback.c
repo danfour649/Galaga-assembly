@@ -84,9 +84,9 @@ void entity_tick_all(GameState *state, int delta_px)
         if (!b->active)
             continue;
         if (b->from_player)
-            b->y -= delta_px;
+            b->y -= delta_px * 3;
         else
-            b->y += delta_px;
+            b->y += delta_px + delta_px / 2;
         if (b->y < -b->h || b->y > GALAGA_HEIGHT)
             b->active = false;
     }
@@ -226,26 +226,24 @@ void enemies_tick_all(GameState *state, int delta_px)
     uint32_t frame = state->frame++;
 
     int stage = state->player.stage;
-    int dive_interval = 90 - stage * 6;
-    if (dive_interval < 35)
-        dive_interval = 35;
+    int dive_interval = 60 - stage * 6;
+    if (dive_interval < 24)
+        dive_interval = 24;
 
     if (frame % (uint32_t)dive_interval == 0) {
         int idx = (int)((frame / (uint32_t)dive_interval) % MAX_ENEMIES);
         Enemy *e = &state->enemies[idx];
         if (e->active && e->state == ENEMY_STATE_FORMATION)
             start_dive(state, e);
-        if (stage >= 2) {
-            idx = (idx + 7) % MAX_ENEMIES;
-            e = &state->enemies[idx];
-            if (e->active && e->state == ENEMY_STATE_FORMATION)
-                start_dive(state, e);
-        }
+        idx = (idx + 7) % MAX_ENEMIES;
+        e = &state->enemies[idx];
+        if (e->active && e->state == ENEMY_STATE_FORMATION)
+            start_dive(state, e);
     }
 
-    int fire_cd_base = 40 - (stage >> 1);
-    if (fire_cd_base < 15)
-        fire_cd_base = 15;
+    int fire_cd_base = 30 - (stage >> 1);
+    if (fire_cd_base < 12)
+        fire_cd_base = 12;
 
     for (int i = 0; i < MAX_ENEMIES; i++) {
         Enemy *e = &state->enemies[i];
@@ -263,7 +261,7 @@ void enemies_tick_all(GameState *state, int delta_px)
 
         if (e->state == ENEMY_STATE_DIVING) {
             e->x += e->vx;
-            e->y += delta_px;
+            e->y += delta_px + delta_px / 2;
             if (e->fire_cd > 0) {
                 e->fire_cd--;
             } else {

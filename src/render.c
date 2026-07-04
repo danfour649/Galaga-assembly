@@ -33,6 +33,65 @@ static void draw_rect(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b)
     SDL_RenderFillRect(renderer, &rect);
 }
 
+/* --- 3x5 bitmap font, one Uint8 per row, low 3 bits used --- */
+
+static const Uint8 FONT_DIGITS[10][5] = {
+    {7,5,5,5,7}, {2,6,2,2,7}, {7,1,7,4,7}, {7,1,3,1,7}, {5,5,7,1,1},
+    {7,4,7,1,7}, {7,4,7,5,7}, {7,1,1,2,2}, {7,5,7,5,7}, {7,5,7,1,7},
+};
+
+static const Uint8 FONT_LETTERS[26][5] = {
+    {2,5,7,5,5}, /* A */ {6,5,6,5,6}, /* B */ {3,4,4,4,3}, /* C */
+    {6,5,5,5,6}, /* D */ {7,4,6,4,7}, /* E */ {7,4,6,4,4}, /* F */
+    {3,4,5,5,3}, /* G */ {5,5,7,5,5}, /* H */ {7,2,2,2,7}, /* I */
+    {1,1,1,5,2}, /* J */ {5,6,4,6,5}, /* K */ {4,4,4,4,7}, /* L */
+    {5,7,7,5,5}, /* M */ {6,5,5,5,5}, /* N */ {7,5,5,5,7}, /* O */
+    {6,5,6,4,4}, /* P */ {7,5,5,7,1}, /* Q */ {6,5,6,5,5}, /* R */
+    {3,4,2,1,6}, /* S */ {7,2,2,2,2}, /* T */ {5,5,5,5,7}, /* U */
+    {5,5,5,5,2}, /* V */ {5,5,7,7,5}, /* W */ {5,5,2,5,5}, /* X */
+    {5,5,2,2,2}, /* Y */ {7,1,2,4,7}, /* Z */
+};
+
+static const Uint8 FONT_DASH[5] = {0,0,7,0,0};
+
+static const Uint8 *font_glyph(char c)
+{
+    if (c >= '0' && c <= '9') return FONT_DIGITS[c - '0'];
+    if (c >= 'A' && c <= 'Z') return FONT_LETTERS[c - 'A'];
+    if (c >= 'a' && c <= 'z') return FONT_LETTERS[c - 'a'];
+    if (c == '-') return FONT_DASH;
+    return NULL;
+}
+
+/* Each character cell is 4x6 game pixels (3x5 glyph + spacing) times scale. */
+static void draw_text(const char *s, int x, int y, int scale,
+                      Uint8 r, Uint8 g, Uint8 b)
+{
+    for (; *s; s++, x += 4 * scale) {
+        const Uint8 *gl = font_glyph(*s);
+        if (!gl)
+            continue;
+        for (int row = 0; row < 5; row++) {
+            for (int col = 0; col < 3; col++) {
+                if (gl[row] & (4 >> col))
+                    draw_rect(x + col * scale, y + row * scale,
+                              scale, scale, r, g, b);
+            }
+        }
+    }
+}
+
+static int text_width(const char *s, int scale)
+{
+    return (int)strlen(s) * 4 * scale - scale;
+}
+
+static void draw_text_centered(const char *s, int y, int scale,
+                               Uint8 r, Uint8 g, Uint8 b)
+{
+    draw_text(s, (GALAGA_WIDTH - text_width(s, scale)) / 2, y, scale, r, g, b);
+}
+
 static void draw_starfield(uint32_t frame, int stage)
 {
     unsigned seed = star_seed + stage * 7919u;
@@ -69,6 +128,30 @@ static void draw_explosion(const Explosion *e)
         SDL_RenderFillRect(renderer, &r);
 }
 
+static void draw_hud(const GameState *state)
+{
+    char buf[32];
+
+    draw_text("1UP", 16, 2, 1, 255, 40, 40);
+    snprintf(buf, sizeof(buf), "%d", state->player.score);
+    draw_text(buf, 12, 9, 1, 255, 255, 255);
+
+    draw_text_centered("HIGH SCORE", 2, 1, 255, 40, 40);
+    snprintf(buf, sizeof(buf), "%d", state->high_score);
+    draw_text_centered(buf, 9, 1, 255, 255, 255);
+
+    /* reserve ships, bottom-left */
+    int reserve = state->player.lives - 1;
+    if (reserve > 6)
+        reserve = 6;
+    for (int i = 0; i < reserve; i++)
+        draw_sprite(sprites_player(), 4 + i * 12, GALAGA_HEIGHT - 12, 10, 10);
+
+    snprintf(buf, sizeof(buf), "STAGE %d", state->player.stage);
+    draw_text(buf, GALAGA_WIDTH - text_width(buf, 1) - 4, GALAGA_HEIGHT - 9,
+              1, 90, 200, 255);
+}
+
 void render_init(void)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -97,6 +180,7 @@ void render_init(void)
         fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
         exit(1);
     }
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
     star_seed = (uint32_t)time(NULL);
     sprites_init(renderer);
@@ -117,17 +201,14 @@ void render_frame(const GameState *state)
 
     draw_starfield(state->frame, state->player.stage);
 
+    int anim = (int)(state->frame >> 3) & 1;
     for (int i = 0; i < MAX_ENEMIES; i++) {
         const Enemy *e = &state->enemies[i];
         if (!e->active)
             continue;
-        SDL_Texture *tex = sprites_enemy(e->type);
-        if (e->state == ENEMY_STATE_DIVING && e->type == ENEMY_TYPE_BOSS && e->hp == 1) {
-            SDL_SetTextureColorMod(tex, 255, 120, 120);
-        } else {
-            SDL_SetTextureColorMod(tex, 255, 255, 255);
-        }
-        draw_sprite(tex, e->x, e->y, e->w, e->h);
+        /* art is 16x16 around a 14x14 hitbox; draw centered on the box */
+        draw_sprite(sprites_enemy(e->type, anim, e->hp),
+                    e->x - 1, e->y - 1, 16, 16);
     }
 
     for (int i = 0; i < MAX_BULLETS; i++) {
@@ -140,44 +221,31 @@ void render_frame(const GameState *state)
         );
     }
 
-    draw_sprite(
-        sprites_player(),
-        state->player.x, state->player.y,
-        state->player.w, state->player.h
-    );
+    if (state->phase != GAME_PHASE_TITLE) {
+        draw_sprite(
+            sprites_player(),
+            state->player.x, state->player.y,
+            state->player.w, state->player.h
+        );
+    }
 
     for (int i = 0; i < MAX_EXPLOSIONS; i++) {
         if (state->explosions[i].active)
             draw_explosion(&state->explosions[i]);
     }
 
-    char buf[160];
-    snprintf(buf, sizeof(buf), "SCORE %d   HI %d   LIVES %d   STAGE %d",
-             state->player.score, state->high_score,
-             state->player.lives, state->player.stage);
-    if (state->phase == GAME_PHASE_TITLE)
-        strncat(buf, "   PRESS FIRE", sizeof(buf) - strlen(buf) - 1);
-    else if (state->phase == GAME_PHASE_STAGE_CLEAR)
-        strncat(buf, "   STAGE CLEAR", sizeof(buf) - strlen(buf) - 1);
-    else if (state->phase == GAME_PHASE_GAME_OVER)
-        strncat(buf, "   GAME OVER", sizeof(buf) - strlen(buf) - 1);
-    SDL_SetWindowTitle(window, buf);
+    draw_hud(state);
 
-    if (state->game_over) {
-        SDL_SetRenderDrawColor(renderer, 200, 40, 40, 180);
-        SDL_Rect overlay = { 0, GALAGA_HEIGHT * GALAGA_SCALE / 2 - 20,
-                             GALAGA_WIDTH * GALAGA_SCALE, 40 };
-        SDL_RenderFillRect(renderer, &overlay);
-    } else if (state->phase == GAME_PHASE_TITLE) {
-        SDL_SetRenderDrawColor(renderer, 40, 40, 120, 200);
-        SDL_Rect banner = { 20, GALAGA_HEIGHT * GALAGA_SCALE / 2 - 30,
-                            GALAGA_WIDTH * GALAGA_SCALE - 40, 60 };
-        SDL_RenderFillRect(renderer, &banner);
+    if (state->phase == GAME_PHASE_TITLE) {
+        draw_text_centered("GALAGA", 96, 3, 255, 40, 40);
+        if (!((state->frame >> 5) & 1))
+            draw_text_centered("PRESS FIRE TO START", 150, 1, 255, 255, 255);
+        draw_text_centered("ASSEMBLY EDITION", 170, 1, 90, 200, 255);
     } else if (state->phase == GAME_PHASE_STAGE_CLEAR) {
-        SDL_SetRenderDrawColor(renderer, 40, 120, 40, 180);
-        SDL_Rect banner = { 20, GALAGA_HEIGHT * GALAGA_SCALE / 2 - 20,
-                            GALAGA_WIDTH * GALAGA_SCALE - 40, 40 };
-        SDL_RenderFillRect(renderer, &banner);
+        draw_text_centered("STAGE CLEAR", 130, 2, 90, 200, 255);
+    } else if (state->phase == GAME_PHASE_GAME_OVER) {
+        draw_text_centered("GAME OVER", 130, 2, 255, 40, 40);
+        draw_text_centered("PRESS FIRE", 150, 1, 255, 255, 255);
     }
 
     SDL_RenderPresent(renderer);

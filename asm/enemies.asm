@@ -159,9 +159,9 @@ enemies_tick_all:
     imul    eax, 6
     mov     ecx, DIVE_INTERVAL_BASE
     sub     ecx, eax
-    cmp     ecx, 35
+    cmp     ecx, DIVE_INTERVAL_MIN
     jge     .iv_ok
-    mov     ecx, 35
+    mov     ecx, DIVE_INTERVAL_MIN
 .iv_ok:
     mov     eax, r13d
     xor     edx, edx
@@ -175,9 +175,6 @@ enemies_tick_all:
     div     ecx
     mov     r14d, edx
     call    try_start_dive
-    mov     eax, [rbx + P_STAGE]
-    cmp     eax, 2
-    jl      .tick_loop
     add     r14d, 7
     cmp     r14d, MAX_ENEMIES
     jl      .idx_ok
@@ -229,14 +226,17 @@ enemies_tick_all:
 .tick_diving:
     mov     ecx, [rax + E_VX]
     add     [rax + E_X], ecx
-    add     [rax + E_Y], r12d
+    mov     ecx, r12d                  ; dive descent 1.5x delta
+    shr     ecx, 1
+    add     ecx, r12d
+    add     [rax + E_Y], ecx
     mov     ecx, [rbx + P_STAGE]
     shr     ecx, 1
     mov     edx, DIVE_FIRE_COOLDOWN
     sub     edx, ecx
-    cmp     edx, 15
+    cmp     edx, DIVE_FIRE_CD_MIN
     jge     .fcd_ok
-    mov     edx, 15
+    mov     edx, DIVE_FIRE_CD_MIN
 .fcd_ok:
     cmp     dword [rax + E_FIRE_CD], 0
     jg      .cooldown
