@@ -130,6 +130,10 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ---
 
+## Lost Session Findings
+
+A previous development session identified several critical bugs in the NASM path (spawn, collision, high scores, timing) plus testing gaps. These have been documented with action items in [docs/LOST_SESSION_FINDINGS.md](LOST_SESSION_FINDINGS.md). The next PR should address or verify the listed fixes and integrate the `sim_test.c` harness.
+
 ## Immediate next PR (recommended)
 
 1. **Phase 3** PR: tractor beam, dual fighter, challenging stages.
