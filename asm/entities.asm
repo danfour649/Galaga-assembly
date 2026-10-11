@@ -32,10 +32,16 @@ entity_spawn:
     mov     r11d, dword [rsp + 28h]    ; y (before callee push)
 %endif
     push    rbx
+    push    r12
+    push    r13
     mov     rbx, ST_PTR
 %ifnidn __OUTPUT_FORMAT__,win64
     mov     r11d, r8d                  ; y
 %endif
+    ; System V passes x in ecx and type in edx. The slot loops below reuse
+    ; those registers, so copy the arguments before searching.
+    mov     r12d, ARG_X
+    mov     r13d, ARG_TYPE
 
     cmp     ARG_KIND, ENTITY_KIND_BULLET
     je      .spawn_bullet
@@ -56,17 +62,17 @@ entity_spawn:
     jmp     .enemy_find
 .enemy_init:
     mov     byte [rax + E_ACTIVE], 1
-    mov     [rax + E_X], ARG_X
+    mov     [rax + E_X], r12d
     mov     [rax + E_Y], r11d
     mov     dword [rax + E_W], ENEMY_W_DEFAULT
     mov     dword [rax + E_H], ENEMY_H_DEFAULT
-    mov     [rax + E_TYPE], ARG_TYPE
+    mov     [rax + E_TYPE], r13d
     mov     dword [rax + E_STATE], ENEMY_STATE_FORMATION
-    mov     [rax + E_HOME_X], ARG_X
+    mov     [rax + E_HOME_X], r12d
     mov     [rax + E_HOME_Y], r11d
     mov     dword [rax + E_VX], 0
     mov     dword [rax + E_FIRE_CD], 0
-    cmp     ARG_TYPE, ENEMY_TYPE_BOSS
+    cmp     r13d, ENEMY_TYPE_BOSS
     je      .hp_boss
     mov     dword [rax + E_HP], 1
     jmp     .hp_done
@@ -74,11 +80,13 @@ entity_spawn:
     mov     dword [rax + E_HP], 2
 .hp_done:
     mov     eax, ecx
+    pop     r13
+    pop     r12
     pop     rbx
     ret
 
 .spawn_bullet:
-    cmp     ARG_TYPE, 1
+    cmp     r13d, 1
     jne     .bullet_find
     xor     ecx, ecx
     xor     edx, edx
@@ -97,7 +105,7 @@ entity_spawn:
     inc     ecx
     jmp     .count_player
 .bullet_find:
-    cmp     ARG_TYPE, 1
+    cmp     r13d, 1
     jne     .bullet_slot
     cmp     edx, MAX_PLAYER_BULLETS
     jge     .fail
@@ -115,21 +123,22 @@ entity_spawn:
     jmp     .bullet_find_loop
 .bullet_init:
     mov     byte [rax + B_ACTIVE], 1
-    mov     [rax + B_X], ARG_X
+    mov     [rax + B_X], r12d
     mov     [rax + B_Y], r11d
     mov     dword [rax + B_W], BULLET_W_DEFAULT
     mov     dword [rax + B_H], BULLET_H_DEFAULT
-%ifidn __OUTPUT_FORMAT__,win64
-    mov     byte [rax + B_FROM_PLAYER], r8b
-%else
-    mov     byte [rax + B_FROM_PLAYER], dl
-%endif
+    test    r13d, r13d
+    setnz   byte [rax + B_FROM_PLAYER]
     mov     eax, ecx
+    pop     r13
+    pop     r12
     pop     rbx
     ret
 
 .fail:
     mov     eax, -1
+    pop     r13
+    pop     r12
     pop     rbx
     ret
 
@@ -288,10 +297,10 @@ entities_spawn_demo_formation:
     xor     edx, edx
     mov     r8d, r12d
     mov     r9d, r14d
-    push    r15
-    sub     rsp, 20h
+    sub     rsp, 30h                 ; 32-byte shadow + arg + align
+    mov     dword [rsp + 20h], r15d
     call    entity_spawn
-    add     rsp, 28h
+    add     rsp, 30h
 %else
     mov     rdi, rbx
     xor     esi, esi

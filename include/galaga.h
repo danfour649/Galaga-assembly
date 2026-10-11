@@ -1,6 +1,7 @@
 #ifndef GALAGA_H
 #define GALAGA_H
 
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -152,5 +153,58 @@ struct SDL_Texture *sprites_enemy(int type, int frame, int hp);
 void render_init(void);
 void render_shutdown(void);
 void render_frame(const GameState *state);
+
+/* Offsets must match include/galaga.inc. A drift here silently breaks NASM. */
+_Static_assert(offsetof(Player, x) == 0, "P_X");
+_Static_assert(offsetof(Player, y) == 4, "P_Y");
+_Static_assert(offsetof(Player, w) == 8, "P_W");
+_Static_assert(offsetof(Player, h) == 12, "P_H");
+_Static_assert(offsetof(Player, lives) == 16, "P_LIVES");
+_Static_assert(offsetof(Player, score) == 20, "P_SCORE");
+_Static_assert(offsetof(Player, stage) == 24, "P_STAGE");
+_Static_assert(sizeof(Player) == 28, "player size");
+
+_Static_assert(offsetof(Enemy, active) == 0, "E_ACTIVE");
+_Static_assert(offsetof(Enemy, x) == 4, "E_X");
+_Static_assert(offsetof(Enemy, y) == 8, "E_Y");
+_Static_assert(offsetof(Enemy, w) == 12, "E_W");
+_Static_assert(offsetof(Enemy, h) == 16, "E_H");
+_Static_assert(offsetof(Enemy, type) == 20, "E_TYPE");
+_Static_assert(offsetof(Enemy, state) == 24, "E_STATE");
+_Static_assert(offsetof(Enemy, home_x) == 28, "E_HOME_X");
+_Static_assert(offsetof(Enemy, home_y) == 32, "E_HOME_Y");
+_Static_assert(offsetof(Enemy, vx) == 36, "E_VX");
+_Static_assert(offsetof(Enemy, fire_cd) == 40, "E_FIRE_CD");
+_Static_assert(offsetof(Enemy, hp) == 44, "E_HP");
+_Static_assert(sizeof(Enemy) == 48, "ENEMY_SIZE");
+
+_Static_assert(offsetof(Bullet, active) == 0, "B_ACTIVE");
+_Static_assert(offsetof(Bullet, x) == 4, "B_X");
+_Static_assert(offsetof(Bullet, y) == 8, "B_Y");
+_Static_assert(offsetof(Bullet, w) == 12, "B_W");
+_Static_assert(offsetof(Bullet, h) == 16, "B_H");
+_Static_assert(offsetof(Bullet, from_player) == 20, "B_FROM_PLAYER");
+_Static_assert(sizeof(Bullet) == 24, "BULLET_SIZE");
+
+_Static_assert(offsetof(CollisionHits, count) == 0, "H_OFF_COUNT");
+_Static_assert(offsetof(CollisionHits, type) == 4, "H_OFF_TYPE");
+_Static_assert(offsetof(CollisionHits, bullet_idx) == 36, "H_OFF_BULLET");
+_Static_assert(offsetof(CollisionHits, enemy_idx) == 68, "H_OFF_ENEMY");
+
+_Static_assert(offsetof(GameState, player) == 0, "GS_PLAYER");
+_Static_assert(offsetof(GameState, enemies) == 28, "GS_ENEMIES");
+_Static_assert(offsetof(GameState, bullets) == 1948, "GS_BULLETS");
+_Static_assert(offsetof(GameState, running) == 2140, "GS_RUNNING");
+_Static_assert(offsetof(GameState, game_over) == 2141, "GS_GAME_OVER");
+_Static_assert(offsetof(GameState, frame) == 2144, "GS_FRAME");
+_Static_assert(offsetof(GameState, phase) == 2148, "GS_PHASE");
+_Static_assert(offsetof(GameState, clear_timer) == 2152, "GS_CLEAR_TIMER");
+_Static_assert(offsetof(GameState, next_extra_life) == 2156, "GS_NEXT_EXTRA_LIFE");
+_Static_assert(offsetof(GameState, high_score) == 2160, "GS_HIGH_SCORE");
+
+_Static_assert(offsetof(Rect, x) == 0, "Rect.x");
+_Static_assert(offsetof(Rect, y) == 4, "Rect.y");
+_Static_assert(offsetof(Rect, w) == 8, "Rect.w");
+_Static_assert(offsetof(Rect, h) == 12, "Rect.h");
 
 #endif /* GALAGA_H */

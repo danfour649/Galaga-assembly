@@ -101,3 +101,33 @@ endif()
 if(NOT GALAGA_IS_EMSCRIPTEN)
     install(TARGETS galaga RUNTIME DESTINATION bin)
 endif()
+
+if(NOT GALAGA_IS_EMSCRIPTEN)
+    enable_testing()
+
+    function(galaga_add_sim_test target use_asm)
+        add_executable(${target}
+            tests/sim_test.c
+            src/game.c
+            src/effects.c
+            src/highscore.c
+        )
+        target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+        if(use_asm)
+            target_sources(${target} PRIVATE $<TARGET_OBJECTS:${GALAGA_ASM_LIB}>)
+            target_compile_definitions(${target} PRIVATE GALAGA_USE_ASM=1)
+        else()
+            target_sources(${target} PRIVATE src/game_fallback.c)
+            target_compile_definitions(${target} PRIVATE GALAGA_USE_ASM=0)
+        endif()
+        if(UNIX AND NOT APPLE)
+            target_link_libraries(${target} PRIVATE m)
+        endif()
+        add_test(NAME ${target} COMMAND ${target})
+    endfunction()
+
+    galaga_add_sim_test(galaga_sim_c OFF)
+    if(GALAGA_USE_ASM)
+        galaga_add_sim_test(galaga_sim_nasm ON)
+    endif()
+endif()
