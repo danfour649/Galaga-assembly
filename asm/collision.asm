@@ -23,32 +23,57 @@ extern score_add_enemy_kill
 ;------------------------------------------------------------------------------
 global rect_overlap
 rect_overlap:
-    mov  eax, [A_PTR + E_X]
-    mov  ecx, [A_PTR + E_Y]
-    mov  edx, [A_PTR + E_W]
-    mov  r8d, [A_PTR + E_H]
-    mov  r9d, [B_PTR + E_X]
-    mov  r10d, [B_PTR + E_W]
-    add  r10d, r9d
-    cmp  eax, r10d
+    ; Rect is {x, y, w, h} at offsets 0/4/8/12.
+    ; Do not reuse rcx/rdx as scratch: on Win64 they are the two pointers.
+    mov  eax, [A_PTR]            ; ax
+    mov  r8d, [A_PTR + 4]        ; ay
+    mov  r11d, [A_PTR + 8]       ; aw
+    mov  r10d, [A_PTR + 12]      ; ah
+    mov  ecx, [B_PTR]            ; bx
+    mov  r9d, [B_PTR + 8]        ; bw
+    add  r9d, ecx                ; b_right
+    cmp  eax, r9d
     jge  .no_overlap
-    lea  r10d, [rax + rdx]
-    cmp  r9d, r10d
+    lea  r9d, [rax + r11]        ; a_right
+    cmp  ecx, r9d
     jge  .no_overlap
-    mov  eax, [B_PTR + E_Y]
-    mov  edx, [B_PTR + E_H]
-    lea  r10d, [rax + rdx]
+    mov  ecx, [B_PTR + 4]        ; by
+    mov  r9d, [B_PTR + 12]       ; bh
+    add  r9d, ecx                ; b_bottom
+    cmp  r8d, r9d
+    jge  .no_overlap
+    add  r10d, r8d               ; a_bottom
     cmp  ecx, r10d
-    jge  .no_overlap
-    mov  edx, [A_PTR + E_H]
-    lea  r10d, [rcx + rdx]
-    cmp  eax, r10d
     jge  .no_overlap
     mov  eax, 1
     ret
 .no_overlap:
     xor  eax, eax
     ret
+
+; Store a 16-byte Rect at [rsp + dest] from base+x/y/w/h offsets.
+%macro STORE_RECT 6
+    mov     ecx, [%2 + %3]
+    mov     [rsp + %1], ecx
+    mov     ecx, [%2 + %4]
+    mov     [rsp + %1 + 4], ecx
+    mov     ecx, [%2 + %5]
+    mov     [rsp + %1 + 8], ecx
+    mov     ecx, [%2 + %6]
+    mov     [rsp + %1 + 12], ecx
+%endmacro
+
+; Compare the two Rects just stored at [rsp] and [rsp+16].
+%macro OVERLAP_STACK_RECTS 0
+%ifidn __OUTPUT_FORMAT__,win64
+    lea     rcx, [rsp]
+    lea     rdx, [rsp + 16]
+%else
+    lea     rdi, [rsp]
+    lea     rsi, [rsp + 16]
+%endif
+    call    rect_overlap
+%endmacro
 
 ;------------------------------------------------------------------------------
 ; overlap_boxes_at: rax=box a, r11=box b → eax=1/0 (clobbers ecx, edx, r8d, r9d, r10d)
@@ -116,6 +141,7 @@ collision_resolve:
     mov     rbx, rdi
     mov     r15, rsi
 %endif
+    sub     rsp, 32                    ; two Rects for player tests
     mov     dword [r15 + H_OFF_COUNT], 0
 
     ; --- player bullets vs enemies ---
@@ -220,9 +246,10 @@ collision_resolve:
     je      .eb_check
     jmp     .eb_next
 .eb_check:
-    mov     r11, r13
-    ; rax = bullet pointer
-    call    overlap_boxes_at
+    ; Bullet shares Enemy offsets. Player.x is at 0, not E_X.
+    STORE_RECT 0, rax, B_X, B_Y, B_W, B_H
+    STORE_RECT 16, r13, P_X, P_Y, P_W, P_H
+    OVERLAP_STACK_RECTS
     test    eax, eax
     jz      .eb_next
     mov     eax, HIT_ENEMY_BULLET_PLAYER
@@ -262,9 +289,9 @@ collision_resolve:
     lea     rax, [rbx + rax + GS_ENEMIES]
     cmp     byte [rax + E_ACTIVE], 0
     je      .body_next
-    mov     r11, r13
-    ; rax = enemy pointer
-    call    overlap_boxes_at
+    STORE_RECT 0, rax, E_X, E_Y, E_W, E_H
+    STORE_RECT 16, r13, P_X, P_Y, P_W, P_H
+    OVERLAP_STACK_RECTS
     test    eax, eax
     jz      .body_next
     mov     eax, HIT_ENEMY_BODY_PLAYER
@@ -293,6 +320,7 @@ collision_resolve:
     jmp     .body_loop
 
 .done:
+    add     rsp, 32
     pop     r15
     pop     r14
     pop     r13

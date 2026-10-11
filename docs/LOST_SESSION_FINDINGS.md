@@ -28,14 +28,15 @@ These findings document critical bugs that existed in the native Linux NASM buil
 
 ## Action items / To-dos
 
-- [ ] Verify/re-apply spawn fix in `asm/entities.asm` (register handling for System V ABI)
-- [ ] Verify/re-apply collision/overlap fix in `asm/collision.asm` (correct offsets for Player vs Enemy)
-- [ ] Fix high score persistence logic in `game.c` / `high_score_save`
-- [ ] Implement fixed-step 60 Hz simulation (decouple from refresh rate)
-- [ ] Add `_Static_assert`s for struct offsets in `include/galaga.h`
-- [ ] Ensure Win64 calling convention alignment for `entity_spawn`
-- [ ] Integrate `tests/sim_test.c` into CI for both NASM and C fallback paths
-- [ ] Update `docs/NEXT_STEPS.md` to reflect actual diver behavior and stage clear timing
+- [x] Verify/re-apply spawn fix in `asm/entities.asm` (register handling for System V ABI)
+- [x] Verify/re-apply collision/overlap fix in `asm/collision.asm` (correct offsets for Player vs Enemy)
+- [x] Fix high score persistence logic in `game.c` / `high_score_save`
+- [x] Implement fixed-step 60 Hz simulation (decouple from refresh rate)
+- [x] Add `_Static_assert`s for struct offsets in `include/galaga.h`
+- [x] Ensure Win64 calling convention alignment for `entity_spawn`
+- [x] Integrate `tests/sim_test.c` into CI for both NASM and C fallback paths
+- [x] Update `docs/NEXT_STEPS.md` to reflect actual diver behavior and stage clear timing
 - [ ] Consider adding scripted input trace test for tractor beam (future)
+- [ ] Starfield point batches and a bitmap font atlas (render polish, not a logic fix)
 
 These ensure the native x86-64 Linux build matches the intended behavior and that regressions are caught early.

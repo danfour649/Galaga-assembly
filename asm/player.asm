@@ -115,10 +115,10 @@ player_try_fire:
     mov     edx, ENTITY_KIND_BULLET
     mov     r8d, 1
     mov     r9d, r10d
-    push    r11
-    sub     rsp, 20h
+    sub     rsp, 30h                 ; shadow + 5th arg, 16-byte aligned
+    mov     dword [rsp + 20h], r11d
     call    entity_spawn
-    add     rsp, 28h
+    add     rsp, 30h
 %else
     mov     rdi, rbx
     mov     esi, ENTITY_KIND_BULLET

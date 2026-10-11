@@ -69,10 +69,10 @@ enemies_spawn_formation:
     xor     edx, edx
     mov     r8d, r15d
     mov     r9d, r14d
-    push    r10
-    sub     rsp, 20h
+    sub     rsp, 30h
+    mov     dword [rsp + 20h], r10d
     call    entity_spawn
-    add     rsp, 28h
+    add     rsp, 30h
 %else
     mov     rdi, rbx
     xor     esi, esi
@@ -81,8 +81,8 @@ enemies_spawn_formation:
     mov     r8d, r10d
     call    entity_spawn
 %endif
-    cmp     eax, -1
-    jl      .next_col
+    test    eax, eax
+    js      .next_col              ; failed spawn must not touch index -1
     call    setup_entering
 .next_col:
     inc     r13d
@@ -106,7 +106,7 @@ start_dive:
     cmp     dword [rax + E_TYPE], ENEMY_TYPE_BUTTERFLY
     je      .butterfly_vx
     cmp     r12d, 0
-    jg      .vx_pos
+    jge     .vx_pos                ; dx == 0 aims +x
     mov     r12d, -2
     jmp     .vx_set
 .vx_pos:
@@ -114,7 +114,7 @@ start_dive:
     jmp     .vx_set
 .butterfly_vx:
     cmp     r12d, 0
-    jg      .bvx_pos
+    jge     .bvx_pos
     mov     r12d, -3
     jmp     .vx_set
 .bvx_pos:
@@ -254,8 +254,8 @@ enemies_tick_all:
     mov     edx, ENTITY_KIND_BULLET
     xor     r8d, r8d
     mov     r9d, r10d
-    push    r11
-    sub     rsp, 20h
+    sub     rsp, 28h               ; RSP was 8 mod 16 after the two pushes
+    mov     dword [rsp + 20h], r11d
     call    entity_spawn
     add     rsp, 28h
 %else

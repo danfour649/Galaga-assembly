@@ -86,7 +86,8 @@ Goal: one screen, shoot enemies, score, lives, game over.
 | Boss diving | 400 |
 
 ### 2.4 Stage progression ✅
-- [x] Stage counter and difficulty ramp (faster dives, more enemy shots, dual divers stage 2+)
+- [x] Stage counter and difficulty ramp (faster dives, more enemy shots). Both backends launch two divers on every interval, including stage 1.
+- [x] Stage clear is 91 sim ticks at 60 Hz (`STAGE_CLEAR_FRAMES` counts down to 0, and the next tick advances)
 - [ ] Stage clear fanfare (SDL_mixer — optional)
 
 ---
@@ -132,7 +133,7 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ## Lost Session Findings
 
-A previous development session identified several critical bugs in the NASM path (spawn, collision, high scores, timing) plus testing gaps. These have been documented with action items in [docs/LOST_SESSION_FINDINGS.md](LOST_SESSION_FINDINGS.md). The next PR should address or verify the listed fixes and integrate the `sim_test.c` harness.
+Critical NASM bugs (spawn registers, player overlap, high score, refresh-locked movement) and the headless `tests/sim_test.c` harness are tracked in [docs/LOST_SESSION_FINDINGS.md](LOST_SESSION_FINDINGS.md).
 
 ## Immediate next PR (recommended)
 
