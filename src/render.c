@@ -1,6 +1,7 @@
 #include "galaga.h"
 
 #include <SDL.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -175,7 +176,20 @@ void render_init(void)
         exit(1);
     }
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    /* Accelerated+vsync is right for a normal desktop. Dummy and some
+       Xvfb setups only have the software driver, so fall back instead of
+       exiting before the first frame. */
+    const Uint32 renderer_flags[] = {
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC,
+        SDL_RENDERER_ACCELERATED,
+        SDL_RENDERER_SOFTWARE | SDL_RENDERER_PRESENTVSYNC,
+        SDL_RENDERER_SOFTWARE
+    };
+    for (size_t i = 0; i < sizeof renderer_flags / sizeof renderer_flags[0]; i++) {
+        renderer = SDL_CreateRenderer(window, -1, renderer_flags[i]);
+        if (renderer)
+            break;
+    }
     if (!renderer) {
         fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
         exit(1);
