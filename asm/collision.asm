@@ -23,27 +23,27 @@ extern score_add_enemy_kill
 ;------------------------------------------------------------------------------
 global rect_overlap
 rect_overlap:
-    ; Rect is {x, y, w, h} at offsets 0/4/8/12. Do not use Enemy offsets here.
-    mov  eax, [A_PTR + 0]
-    mov  ecx, [A_PTR + 4]
-    mov  edx, [A_PTR + 8]
-    mov  r8d, [A_PTR + 12]
-    mov  r9d, [B_PTR + 0]
-    mov  r10d, [B_PTR + 8]
-    add  r10d, r9d
-    cmp  eax, r10d
+    ; Rect is {x, y, w, h} at offsets 0/4/8/12.
+    ; Do not reuse rcx/rdx as scratch: on Win64 they are the two pointers.
+    mov  eax, [A_PTR]            ; ax
+    mov  r8d, [A_PTR + 4]        ; ay
+    mov  r11d, [A_PTR + 8]       ; aw
+    mov  r10d, [A_PTR + 12]      ; ah
+    mov  ecx, [B_PTR]            ; bx
+    mov  r9d, [B_PTR + 8]        ; bw
+    add  r9d, ecx                ; b_right
+    cmp  eax, r9d
     jge  .no_overlap
-    lea  r10d, [rax + rdx]
-    cmp  r9d, r10d
+    lea  r9d, [rax + r11]        ; a_right
+    cmp  ecx, r9d
     jge  .no_overlap
-    mov  eax, [B_PTR + 4]
-    mov  edx, [B_PTR + 12]
-    lea  r10d, [rax + rdx]
+    mov  ecx, [B_PTR + 4]        ; by
+    mov  r9d, [B_PTR + 12]       ; bh
+    add  r9d, ecx                ; b_bottom
+    cmp  r8d, r9d
+    jge  .no_overlap
+    add  r10d, r8d               ; a_bottom
     cmp  ecx, r10d
-    jge  .no_overlap
-    mov  edx, [A_PTR + 12]
-    lea  r10d, [rcx + rdx]
-    cmp  eax, r10d
     jge  .no_overlap
     mov  eax, 1
     ret
