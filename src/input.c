@@ -13,6 +13,11 @@ void input_poll(bool *move_left, bool *move_right, bool *fire, bool *quit)
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT)
             *quit = true;
+        if (event.type == SDL_KEYDOWN && !event.key.repeat &&
+            (event.key.keysym.sym == SDLK_F11 ||
+             (event.key.keysym.sym == SDLK_RETURN &&
+              (event.key.keysym.mod & KMOD_ALT))))
+            render_toggle_fullscreen();
 #ifndef __EMSCRIPTEN__
         if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
             *quit = true;

@@ -7,7 +7,7 @@
 
 #define GALAGA_WIDTH  224
 #define GALAGA_HEIGHT 288
-#define GALAGA_SCALE  2
+#define GALAGA_SCALE  2   /* minimum initial window scale */
 
 #define MAX_ENEMIES 40
 #define MAX_BULLETS 8
@@ -152,6 +152,7 @@ struct SDL_Texture *sprites_enemy_bullet(void);
 struct SDL_Texture *sprites_enemy(int type, int frame, int hp);
 void render_init(void);
 void render_shutdown(void);
+void render_toggle_fullscreen(void);
 void render_frame(const GameState *state);
 
 /* Offsets must match include/galaga.inc. A drift here silently breaks NASM. */
