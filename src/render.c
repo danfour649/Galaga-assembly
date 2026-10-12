@@ -13,23 +13,13 @@ static uint32_t      star_seed = 0;
 
 static void draw_sprite(SDL_Texture *tex, int x, int y, int w, int h)
 {
-    SDL_Rect dst = {
-        x * GALAGA_SCALE,
-        y * GALAGA_SCALE,
-        w * GALAGA_SCALE,
-        h * GALAGA_SCALE
-    };
+    SDL_Rect dst = { x, y, w, h };
     SDL_RenderCopy(renderer, tex, NULL, &dst);
 }
 
 static void draw_rect(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b)
 {
-    SDL_Rect rect = {
-        x * GALAGA_SCALE,
-        y * GALAGA_SCALE,
-        w * GALAGA_SCALE,
-        h * GALAGA_SCALE
-    };
+    SDL_Rect rect = { x, y, w, h };
     SDL_SetRenderDrawColor(renderer, r, g, b, 255);
     SDL_RenderFillRect(renderer, &rect);
 }
@@ -113,18 +103,13 @@ static void draw_explosion(const Explosion *e)
     int size = 6 + age * 2;
     Uint8 alpha = (Uint8)(255 - age * 18);
     SDL_SetRenderDrawColor(renderer, 255, 200, 40, alpha);
-    SDL_Rect r = {
-        (e->x - size / 2) * GALAGA_SCALE,
-        (e->y - size / 2) * GALAGA_SCALE,
-        size * GALAGA_SCALE,
-        size * GALAGA_SCALE
-    };
+    SDL_Rect r = { e->x - size / 2, e->y - size / 2, size, size };
     SDL_RenderFillRect(renderer, &r);
     SDL_SetRenderDrawColor(renderer, 255, 80, 20, alpha);
-    r.x += GALAGA_SCALE;
-    r.y += GALAGA_SCALE;
-    r.w -= 2 * GALAGA_SCALE;
-    r.h -= 2 * GALAGA_SCALE;
+    r.x += 1;
+    r.y += 1;
+    r.w -= 2;
+    r.h -= 2;
     if (r.w > 0 && r.h > 0)
         SDL_RenderFillRect(renderer, &r);
 }
@@ -160,8 +145,19 @@ void render_init(void)
         exit(1);
     }
 
-    int win_w = GALAGA_WIDTH * GALAGA_SCALE;
-    int win_h = GALAGA_HEIGHT * GALAGA_SCALE;
+    /* Largest integer scale that fits ~90% of the desktop height. */
+    int scale = GALAGA_SCALE;
+    SDL_Rect usable;
+    if (SDL_GetDisplayUsableBounds(0, &usable) == 0) {
+        int fit = (usable.h * 9 / 10) / GALAGA_HEIGHT;
+        int fit_w = (usable.w * 9 / 10) / GALAGA_WIDTH;
+        if (fit_w < fit)
+            fit = fit_w;
+        if (fit > scale)
+            scale = fit;
+    }
+    int win_w = GALAGA_WIDTH * scale;
+    int win_h = GALAGA_HEIGHT * scale;
 
     window = SDL_CreateWindow(
         "Galaga-assembly",
@@ -169,7 +165,7 @@ void render_init(void)
         SDL_WINDOWPOS_CENTERED,
         win_w,
         win_h,
-        SDL_WINDOW_SHOWN
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
     );
     if (!window) {
         fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
@@ -196,8 +192,19 @@ void render_init(void)
     }
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
+    /* Draw in game pixels; SDL scales to the window and letterboxes. */
+    SDL_RenderSetLogicalSize(renderer, GALAGA_WIDTH, GALAGA_HEIGHT);
+    SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
+
     star_seed = (uint32_t)time(NULL);
     sprites_init(renderer);
+}
+
+void render_toggle_fullscreen(void)
+{
+    Uint32 flags = SDL_GetWindowFlags(window);
+    SDL_SetWindowFullscreen(window,
+        (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
 }
 
 void render_shutdown(void)
