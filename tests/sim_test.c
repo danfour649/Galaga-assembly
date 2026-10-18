@@ -1,4 +1,5 @@
 #include "galaga.h"
+#include "synth.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -496,6 +497,71 @@ static void test_challenging_stage(void)
                40 * CHALLENGE_HIT_POINTS + 5 * 1000 + CHALLENGE_PERFECT_BONUS);
 }
 
+static int peak(const int16_t *b, int n)
+{
+    int m = 0;
+    for (int i = 0; i < n; i++) {
+        int v = b[i] < 0 ? -b[i] : b[i];
+        if (v > m) m = v;
+    }
+    return m;
+}
+
+static void test_synth_and_sound_watch(void)
+{
+    static GameState state;
+    static SoundWatch w;
+    static int16_t buf[4800];
+    int i;
+
+    synth_init(48000);
+    synth_set_mute(0);
+    synth_render(buf, 4800);
+    expect_int("silence when idle", peak(buf, 4800), 0);
+    for (i = 0; i < SND_COUNT; i++) {
+        synth_init(48000);
+        synth_play(i);
+        synth_render(buf, 4800);
+        if (peak(buf, 4800) < 1000)
+            expect_int("every sound is audible", i, -1);
+    }
+    /* a shot ends after ~70 ms */
+    synth_init(48000);
+    synth_play(SND_SHOT);
+    synth_render(buf, 4800);
+    synth_render(buf, 4800);
+    expect_int("shot finished", synth_active_voices(), 0);
+    /* muted: nothing plays */
+    synth_init(48000);
+    synth_set_mute(1);
+    synth_play(SND_START);
+    synth_render(buf, 4800);
+    expect_int("muted is silent", peak(buf, 4800), 0);
+    synth_set_mute(0);
+
+    /* watcher: start jingle on PLAYER 1, a shot sound when firing */
+    synth_init(48000);
+    memset(&w, 0, sizeof(w));
+    game_init(&state);
+    sound_watch_update(&w, &state);
+    game_tick(&state, 1.0f / 60.0f, false, false, true);
+    sound_watch_update(&w, &state);
+    expect_int("start jingle", (w.played >> SND_START) & 1, 1);
+    for (i = 0; i < BANNER_PLAYER1_STEPS + 2; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    sound_watch_update(&w, &state);
+    expect_int("no stage chime after PLAYER 1", (w.played >> SND_STAGE) & 1, 0);
+    for (i = 0; i < BANNER_STAGE_STEPS; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    sound_watch_update(&w, &state);
+    game_tick(&state, 1.0f / 60.0f, false, false, true);
+    sound_watch_update(&w, &state);
+    expect_int("shot sound", (w.played >> SND_SHOT) & 1, 1);
+    game_tick(&state, 1.0f / 60.0f, false, false, false);
+    sound_watch_update(&w, &state);
+    expect_int("shot sound once", (w.played >> SND_SHOT) & 1, 0);
+}
+
 int main(void)
 {
     test_overlap();
@@ -508,6 +574,7 @@ int main(void)
     test_extra_lives_and_respawn();
     test_capture_and_dual();
     test_challenging_stage();
+    test_synth_and_sound_watch();
     if (failures) {
         fprintf(stderr, "%d failure(s)\n", failures);
         return 1;

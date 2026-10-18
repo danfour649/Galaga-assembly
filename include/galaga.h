@@ -276,6 +276,12 @@ void render_shutdown(void);
 void render_toggle_fullscreen(void);
 void render_frame(const GameState *state);
 
+void audio_init(void);
+void audio_update(const GameState *state);
+void audio_set_mute(int mute);
+int  audio_muted(void);
+void audio_shutdown(void);
+
 /* Offsets must match include/galaga.inc. A drift here silently breaks NASM. */
 _Static_assert(offsetof(Player, x) == 0, "P_X");
 _Static_assert(offsetof(Player, y) == 4, "P_Y");

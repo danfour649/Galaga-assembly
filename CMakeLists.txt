@@ -47,6 +47,8 @@ set(GALAGA_C_SOURCES
     src/sprites.c
     src/effects.c
     src/highscore.c
+    src/audio.c
+    src/synth.c
 )
 
 if(NOT GALAGA_USE_ASM)
@@ -70,7 +72,7 @@ if(GALAGA_IS_EMSCRIPTEN)
     target_link_options(galaga PRIVATE
         -sUSE_SDL=2
         -sALLOW_MEMORY_GROWTH=1
-        -sEXPORTED_FUNCTIONS=_main,_galaga_set_touch
+        -sEXPORTED_FUNCTIONS=_main,_galaga_set_touch,_galaga_audio_unlock,_galaga_set_mute,_galaga_audio_state
         -sEXPORTED_RUNTIME_METHODS=ccall
         --shell-file "${CMAKE_SOURCE_DIR}/web/shell.html"
     )
@@ -117,6 +119,7 @@ if(NOT GALAGA_IS_EMSCRIPTEN)
             src/capture.c
             src/effects.c
             src/highscore.c
+            src/synth.c
         )
         target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR}/include)
         if(use_asm)

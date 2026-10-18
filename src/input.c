@@ -33,6 +33,10 @@ void input_poll(bool *move_left, bool *move_right, bool *fire, bool *quit)
 #ifndef __EMSCRIPTEN__
         if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
             *quit = true;
+        /* M toggles sound (the web page handles M itself, with its button) */
+        if (event.type == SDL_KEYDOWN && !event.key.repeat &&
+            event.key.keysym.sym == SDLK_m)
+            audio_set_mute(!audio_muted());
 #endif
     }
 

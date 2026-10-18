@@ -16,6 +16,7 @@ static void main_loop(void)
     input_poll(&move_left, &move_right, &fire, &quit);
     if (quit) {
         emscripten_cancel_main_loop();
+        audio_shutdown();
         render_shutdown();
         return;
     }
@@ -27,6 +28,7 @@ static void main_loop(void)
         dt = 0.05f;
 
     game_tick(&g_state, dt, move_left, move_right, fire);
+    audio_update(&g_state);
     render_frame(&g_state);
 }
 #endif
@@ -49,6 +51,7 @@ int main(int argc, char *argv[])
     game_init(&state);
 
     render_init();
+    audio_init();
 
     Uint64 prev = SDL_GetPerformanceCounter();
     const double freq = (double)SDL_GetPerformanceFrequency();
@@ -66,9 +69,11 @@ int main(int argc, char *argv[])
             dt = 0.05f;
 
         game_tick(&state, dt, move_left, move_right, fire);
+        audio_update(&state);
         render_frame(&state);
     }
 
+    audio_shutdown();
     render_shutdown();
     return 0;
 #endif
