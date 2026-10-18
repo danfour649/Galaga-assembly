@@ -421,6 +421,81 @@ static void test_capture_and_dual(void)
     }
 }
 
+static void test_challenging_stage(void)
+{
+    static GameState state;
+    int i, enemy_shots = 0, saw_result = 0, hits_seen = 0;
+
+    expect_int("stage 3 is challenging", flight_is_challenge_stage(3), 1);
+    expect_int("stage 7 is challenging", flight_is_challenge_stage(7), 1);
+    expect_int("stage 4 is normal", flight_is_challenge_stage(4), 0);
+
+    game_init(&state);
+    state.flight.rng = 12345;
+    game_tick(&state, 1.0f / 60.0f, false, false, true);
+    /* jump to the end of stage 2 */
+    state.player.stage = 2;
+    for (i = 0; i < MAX_ENEMIES; i++)
+        state.enemies[i].active = false;
+    for (i = 0; i < 400 && state.player.stage != 3; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("reached stage 3", state.player.stage, 3);
+    expect_int("challenge active", state.challenge.active, 1);
+    expect_int("40 challengers", state.challenge.group_left[0] + state.challenge.group_left[1] +
+               state.challenge.group_left[2] + state.challenge.group_left[3] +
+               state.challenge.group_left[4], 40);
+
+    /* let every group fly through untouched; nobody fires */
+    int score0 = state.player.score;
+    for (i = 0; i < 3000 && state.player.stage == 3; i++) {
+        state.player.lives = 5;           /* ignore fly-through collisions */
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+        for (int b = 0; b < MAX_BULLETS; b++)
+            if (state.bullets[b].active && !state.bullets[b].from_player)
+                enemy_shots++;
+        if (state.challenge.result == 1)
+            saw_result = 1;
+    }
+    expect_int("challengers never fire", enemy_shots, 0);
+    expect_int("results shown", saw_result, 1);
+    expect_int("no hits, no bonus", state.player.score - score0, 0);
+    expect_int("advanced to stage 4", state.player.stage, 4);
+    for (i = 0; i < 5 && !state.challenge.active; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("stage 4 is a normal stage", state.challenge.active, 0);
+
+    /* perfect: shoot every challenger -> 100 each + group bonuses + 10000 */
+    game_init(&state);
+    state.flight.rng = 777;
+    game_tick(&state, 1.0f / 60.0f, false, false, true);
+    state.player.stage = 2;
+    for (i = 0; i < MAX_ENEMIES; i++)
+        state.enemies[i].active = false;
+    for (i = 0; i < 400 && state.player.stage != 3; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    score0 = state.player.score;
+    for (i = 0; i < 3000 && state.player.stage == 3; i++) {
+        state.player.lives = 5;
+        /* a player bullet on every visible challenger */
+        for (int e = 0; e < MAX_ENEMIES; e++) {
+            const Enemy *en = &state.enemies[e];
+            if (en->active && en->x > 0 && en->x < GALAGA_WIDTH - 16 &&
+                en->y > 20 && en->y < GALAGA_HEIGHT - 40)
+                entity_spawn(&state, ENTITY_KIND_BULLET, 1, en->x + 6, en->y + 4);
+            for (int b = 0; b < MAX_BULLETS; b++)
+                if (state.bullets[b].active && state.bullets[b].from_player &&
+                    state.bullets[b].y < 0)
+                    state.bullets[b].active = false;
+        }
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+        if (state.challenge.active && state.challenge.hits > hits_seen)
+            hits_seen = state.challenge.hits;
+    }
+    expect_int("perfect hits", hits_seen, 40);
+    expect_int("perfect score", state.player.score - score0,
+               40 * CHALLENGE_HIT_POINTS + 5 * 1000 + CHALLENGE_PERFECT_BONUS);
+}
+
 int main(void)
 {
     test_overlap();
@@ -432,6 +507,7 @@ int main(void)
     test_flight();
     test_extra_lives_and_respawn();
     test_capture_and_dual();
+    test_challenging_stage();
     if (failures) {
         fprintf(stderr, "%d failure(s)\n", failures);
         return 1;

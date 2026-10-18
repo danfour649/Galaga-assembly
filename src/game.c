@@ -141,7 +141,8 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
     effects_tick(state);
 
     if (state->phase == GAME_PHASE_PLAYING &&
-        !entity_any_active(state, ENTITY_KIND_ENEMY))
+        !entity_any_active(state, ENTITY_KIND_ENEMY) &&
+        flight_stage_finished(state))
         game_state_begin_stage_clear(state);
 
     maybe_save_high_score(state, phase_before);
