@@ -431,6 +431,13 @@ void flight_tick(GameState *s)
     int i, all_home = 1;
 
     s->frame++;
+    /* Waves wait for the PLAYER 1 / STAGE N banners, like the arcade. */
+    if (s->hud.banner == BANNER_PLAYER1 || s->hud.banner == BANNER_STAGE) {
+        for (i = 0; i < MAX_ENEMIES; i++)
+            if (s->enemies[i].active && fs->f[i].mode == FLIGHT_FORMED)
+                tick_one(s, i);
+        return;
+    }
     fs->t++;
 
     for (i = 0; i < MAX_ENEMIES; i++) {
@@ -450,6 +457,9 @@ void flight_tick(GameState *s)
     }
 
     fs->breath_t++;
+    /* no new attacks while the fighter is exploding / respawning */
+    if (s->hud.dead_timer > 0)
+        return;
     if (--fs->dive_timer <= 0)
         pick_divers(s);
 }

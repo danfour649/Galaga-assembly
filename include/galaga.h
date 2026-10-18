@@ -85,11 +85,34 @@ typedef struct {
     int enemy_idx[MAX_COLLISION_HITS];
 } CollisionHits;
 
+#define EXPLOSION_ENEMY  0
+#define EXPLOSION_PLAYER 1
+#define PLAYER_EXPLOSION_FRAMES 48
+
 typedef struct {
     bool active;
     int  x, y;
     int  timer;
+    int  kind;      /* EXPLOSION_* */
 } Explosion;
+
+#define BANNER_NONE     0
+#define BANNER_PLAYER1  1
+#define BANNER_STAGE    2
+#define BANNER_READY    3
+
+#define BANNER_PLAYER1_STEPS 110
+#define BANNER_STAGE_STEPS   100
+#define PLAYER_DEAD_STEPS    170   /* explosion + pause + READY */
+#define PLAYER_READY_STEPS   70    /* last part of the pause shows READY */
+
+/* Presentation state owned by game.c (C on every backend). */
+typedef struct {
+    uint32_t ticks;        /* sim steps in every phase (blink, starfield) */
+    int      banner;       /* BANNER_* */
+    int      banner_timer;
+    int      dead_timer;   /* >0 while the fighter is exploded / respawning */
+} Hud;
 
 /* Per-enemy flight data for src/flight.c. Lives at the END of GameState so
    every offset the NASM modules use (include/galaga.inc) is unchanged. */
@@ -131,7 +154,8 @@ typedef struct {
     int           high_score;
     CollisionHits last_hits;
     Explosion     explosions[MAX_EXPLOSIONS];
-    FlightState   flight;   /* keep last: not mirrored in galaga.inc */
+    FlightState   flight;   /* C-only from here: not mirrored in galaga.inc */
+    Hud           hud;
 } GameState;
 
 int  rect_overlap(const Rect *a, const Rect *b);
@@ -166,6 +190,7 @@ void game_state_begin_stage_clear(GameState *state);
 int  game_state_is_playing(const GameState *state);
 
 void effects_spawn_explosion(GameState *gs, int x, int y);
+void effects_spawn_explosion_kind(GameState *gs, int x, int y, int kind);
 void effects_process_hits(GameState *gs);
 void effects_tick(GameState *gs);
 
