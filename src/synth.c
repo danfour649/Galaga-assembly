@@ -270,7 +270,8 @@ void sound_watch_update(SoundWatch *w, const GameState *s)
 {
     int i;
     w->played = 0;
-    if (w->valid) {
+    /* the attract demo plays silently */
+    if (w->valid && !s->hud.demo) {
         if (s->phase == GAME_PHASE_PLAYING || s->phase == GAME_PHASE_STAGE_CLEAR) {
             for (i = 0; i < MAX_BULLETS; i++) {
                 const Bullet *b = &s->bullets[i];
@@ -315,7 +316,7 @@ void sound_watch_update(SoundWatch *w, const GameState *s)
         if (s->phase == GAME_PHASE_GAME_OVER && w->phase != GAME_PHASE_GAME_OVER)
             fire(w, SND_GAME_OVER);
     }
-    synth_beam(s->phase == GAME_PHASE_PLAYING && s->capture.beam_boss >= 0 &&
+    synth_beam(!s->hud.demo && s->phase == GAME_PHASE_PLAYING && s->capture.beam_boss >= 0 &&
                s->capture.beam_len > 0);
 
     w->valid = 1;

@@ -296,7 +296,7 @@ static void draw_hud(const GameState *state)
    page 0 reveals the score table line by line, page 1 explains the
    capture-and-rescue trick. Plain text title; no logo art. --- */
 
-#define ATTRACT_PAGE   480
+#define ATTRACT_PAGE   ATTRACT_PAGE_STEPS
 #define ATTRACT_CYCLE  (ATTRACT_PAGE * 2)
 
 static void draw_score_row(int y, SDL_Texture *tex, int rack, int dive, bool flip)
@@ -361,7 +361,7 @@ static void draw_challenge_result(const GameState *state)
 
 static void draw_attract(const GameState *state)
 {
-    uint32_t t = state->hud.ticks % ATTRACT_CYCLE;
+    uint32_t t = (uint32_t)state->hud.title_t % ATTRACT_CYCLE;
     int anim = (int)(state->hud.ticks >> 3) & 1;
 
     /* title: red with a darker drop shadow */
@@ -564,6 +564,12 @@ void render_frame(const GameState *state)
     }
 
     draw_hud(state);
+
+    if (state->hud.demo) {
+        draw_text_centered("DEMO", 18, 1, 90, 230, 255);
+        if (!((state->hud.ticks >> 5) & 1))
+            draw_text_centered("PRESS FIRE", GALAGA_HEIGHT - 9, 1, 255, 255, 255);
+    }
 
     if (state->phase == GAME_PHASE_TITLE) {
         draw_attract(state);

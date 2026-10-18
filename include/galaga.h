@@ -160,7 +160,18 @@ typedef struct {
     int      shots;        /* player shots fired this game (results screen) */
     int      hits;         /* player shots that hit an enemy this game */
     int      over_t;       /* steps since GAME OVER */
+    int      title_t;      /* steps on the title screen (attract pages) */
+    int      demo;         /* attract-mode demo game running */
+    int      demo_t;
+    int      demo_high;    /* high score to restore when the demo ends */
+    int      demo_beamed;  /* the demo has shown its tractor beam */
 } Hud;
+
+/* Attract mode: two title pages, then a short AI demo game. */
+#define ATTRACT_PAGE_STEPS 480
+#define DEMO_AFTER_STEPS   (ATTRACT_PAGE_STEPS * 2)
+#define DEMO_STEPS         1560   /* 26 s */
+#define DEMO_BEAM_AT       480
 
 /* After GAME OVER: the banner, then -RESULTS-, then back to the title. */
 #define GAMEOVER_RESULTS_AT 150
