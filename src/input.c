@@ -12,6 +12,32 @@ EMSCRIPTEN_KEEPALIVE void galaga_set_touch(int left, int right, int fire)
     touch_right = right;
     touch_fire = fire;
 }
+
+/* Drag-to-move: while a finger is down on the playfield the page reports
+   how far it has moved since touching down, as a fraction of the canvas
+   width in 1/1000ths. The fighter follows that offset from where it was. */
+static int drag_active, drag_milli, drag_anchor;
+EMSCRIPTEN_KEEPALIVE void galaga_set_drag(int active, int dx_milli)
+{
+    drag_active = active ? 1 : 0;
+    drag_milli = dx_milli;
+    if (active == 2)              /* touch down: re-anchor on the next poll */
+        drag_anchor = -1;
+}
+
+void input_apply_drag(const GameState *s, bool *move_left, bool *move_right)
+{
+    if (!drag_active)
+        return;
+    int cx = s->player.x + s->player.w / 2;
+    if (drag_anchor < 0)
+        drag_anchor = cx;
+    int target = drag_anchor + drag_milli * GALAGA_WIDTH / 1000;
+    if (target < cx - 1)
+        *move_left = true;
+    else if (target > cx + 1)
+        *move_right = true;
+}
 #endif
 
 void input_poll(bool *move_left, bool *move_right, bool *fire, bool *quit)

@@ -72,10 +72,12 @@ if(GALAGA_IS_EMSCRIPTEN)
     target_link_options(galaga PRIVATE
         -sUSE_SDL=2
         -sALLOW_MEMORY_GROWTH=1
-        -sEXPORTED_FUNCTIONS=_main,_galaga_set_touch,_galaga_audio_unlock,_galaga_set_mute,_galaga_audio_state,_galaga_save_progress
+        -sEXPORTED_FUNCTIONS=_main,_galaga_set_touch,_galaga_audio_unlock,_galaga_set_mute,_galaga_audio_state,_galaga_save_progress,_galaga_set_drag
         -sEXPORTED_RUNTIME_METHODS=ccall
         --shell-file "${CMAKE_SOURCE_DIR}/web/shell.html"
     )
+    # relink when the page template changes
+    set_property(TARGET galaga APPEND PROPERTY LINK_DEPENDS "${CMAKE_SOURCE_DIR}/web/shell.html")
     # PWA files next to galaga.html (manifest, service worker, icons)
     add_custom_command(TARGET galaga POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

@@ -13,6 +13,10 @@ EMSCRIPTEN_KEEPALIVE void galaga_save_progress(void)
 {
     game_save_progress(&g_state);
 }
+/* Page-side haptics (web/shell.html decides: toggle, mute, support). */
+EM_JS(void, galaga_haptic_js, (int bits), {
+    if (Module.galagaHaptic) Module.galagaHaptic(bits);
+});
 static Uint64    g_prev;
 static double    g_freq;
 
@@ -33,8 +37,12 @@ static void main_loop(void)
     if (dt > 0.05f)
         dt = 0.05f;
 
+    if (!move_left && !move_right)
+        input_apply_drag(&g_state, &move_left, &move_right);
     game_tick(&g_state, dt, move_left, move_right, fire);
     audio_update(&g_state);
+    if (audio_haptic_events())
+        galaga_haptic_js((int)audio_haptic_events());
     render_frame(&g_state);
 }
 #endif

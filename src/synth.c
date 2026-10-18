@@ -270,6 +270,7 @@ void sound_watch_update(SoundWatch *w, const GameState *s)
 {
     int i;
     w->played = 0;
+    w->haptic = 0;
     /* the attract demo plays silently */
     if (w->valid && !s->hud.demo) {
         if (s->phase == GAME_PHASE_PLAYING || s->phase == GAME_PHASE_STAGE_CLEAR) {
@@ -282,10 +283,19 @@ void sound_watch_update(SoundWatch *w, const GameState *s)
             for (i = 0; i < MAX_EXPLOSIONS; i++) {
                 const Explosion *e = &s->explosions[i];
                 if (e->active && (!w->expl_on[i] || e->timer > w->expl_timer[i]))
+                {
                     fire(w, e->kind == EXPLOSION_PLAYER ? SND_PLAYER_DIE : SND_HIT);
+                    if (e->kind == EXPLOSION_PLAYER)
+                        w->haptic |= HAPTIC_PLAYER_HIT;
+                }
             }
             for (i = 0; i < MAX_ENEMIES; i++) {
                 const Enemy *e = &s->enemies[i];
+                /* a Boss that vanished while the score went up was shot down
+                   (challenge ships that fly off score nothing) */
+                if (!e->active && w->enemy_on[i] && w->enemy_boss[i] &&
+                    s->player.score > w->score)
+                    w->haptic |= HAPTIC_BOSS_KILL;
                 if (!e->active || !w->enemy_on[i])
                     continue;
                 if (e->type == ENEMY_TYPE_BOSS && e->hp < w->enemy_hp[i])
@@ -296,8 +306,14 @@ void sound_watch_update(SoundWatch *w, const GameState *s)
             if (s->next_extra_life > w->next_extra_life && w->phase == GAME_PHASE_PLAYING)
                 fire(w, SND_EXTRA_LIFE);
             if (s->capture.state != w->capt_state) {
-                if (s->capture.state == CAPT_PULL) fire(w, SND_CAPTURED);
-                if (s->capture.state == CAPT_RESCUE) fire(w, SND_RESCUE);
+                if (s->capture.state == CAPT_PULL) {
+                    fire(w, SND_CAPTURED);
+                    w->haptic |= HAPTIC_CAPTURED;
+                }
+                if (s->capture.state == CAPT_RESCUE) {
+                    fire(w, SND_RESCUE);
+                    w->haptic |= HAPTIC_RESCUE;
+                }
             }
             if (s->challenge.result == 1 && w->chal_result == 0)
                 fire(w, SND_RESULT);
@@ -326,6 +342,7 @@ void sound_watch_update(SoundWatch *w, const GameState *s)
     w->capt_state = s->capture.state;
     w->chal_result = s->challenge.result;
     w->chal_timer = s->challenge.result_timer;
+    w->score = s->player.score;
     for (i = 0; i < MAX_BULLETS; i++) {
         w->bullet_on[i] = s->bullets[i].active && s->bullets[i].from_player;
         w->bullet_y[i] = s->bullets[i].y;
@@ -338,5 +355,6 @@ void sound_watch_update(SoundWatch *w, const GameState *s)
         w->enemy_on[i] = s->enemies[i].active;
         w->enemy_hp[i] = s->enemies[i].hp;
         w->enemy_state[i] = s->enemies[i].state;
+        w->enemy_boss[i] = s->enemies[i].type == ENEMY_TYPE_BOSS;
     }
 }

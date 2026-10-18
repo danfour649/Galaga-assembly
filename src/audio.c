@@ -51,12 +51,15 @@ void audio_init(void)
 
 void audio_update(const GameState *state)
 {
-    if (!dev)
-        return;
-    SDL_LockAudioDevice(dev);
+    /* The watcher runs even before the device opens (web: first gesture),
+       so haptic events work too; with no device there is no audio thread
+       and synth calls are harmless. */
+    if (dev) SDL_LockAudioDevice(dev);
     sound_watch_update(&watch, state);
-    SDL_UnlockAudioDevice(dev);
+    if (dev) SDL_UnlockAudioDevice(dev);
 }
+
+uint32_t audio_haptic_events(void) { return watch.haptic; }
 
 void audio_set_mute(int mute)
 {
