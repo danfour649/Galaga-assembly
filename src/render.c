@@ -9,7 +9,6 @@
 
 static SDL_Window   *window;
 static SDL_Renderer *renderer;
-static uint32_t      star_seed = 0;
 
 static void draw_sprite(SDL_Texture *tex, int x, int y, int w, int h)
 {
@@ -24,57 +23,57 @@ static void draw_rect(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b)
     SDL_RenderFillRect(renderer, &rect);
 }
 
-/* --- 3x5 bitmap font, one Uint8 per row, low 3 bits used --- */
+/* --- 8x8 arcade-style font (src/font8.h), drawn from a white glyph atlas
+   tinted per call. Each character cell is 8x8 game pixels times scale. --- */
 
-static const Uint8 FONT_DIGITS[10][5] = {
-    {7,5,5,5,7}, {2,6,2,2,7}, {7,1,7,4,7}, {7,1,3,1,7}, {5,5,7,1,1},
-    {7,4,7,1,7}, {7,4,7,5,7}, {7,1,1,2,2}, {7,5,7,5,7}, {7,5,7,1,7},
-};
+#include "font8.h"
 
-static const Uint8 FONT_LETTERS[26][5] = {
-    {2,5,7,5,5}, /* A */ {6,5,6,5,6}, /* B */ {3,4,4,4,3}, /* C */
-    {6,5,5,5,6}, /* D */ {7,4,6,4,7}, /* E */ {7,4,6,4,4}, /* F */
-    {3,4,5,5,3}, /* G */ {5,5,7,5,5}, /* H */ {7,2,2,2,7}, /* I */
-    {1,1,1,5,2}, /* J */ {5,6,4,6,5}, /* K */ {4,4,4,4,7}, /* L */
-    {5,7,7,5,5}, /* M */ {6,5,5,5,5}, /* N */ {7,5,5,5,7}, /* O */
-    {6,5,6,4,4}, /* P */ {7,5,5,7,1}, /* Q */ {6,5,6,5,5}, /* R */
-    {3,4,2,1,6}, /* S */ {7,2,2,2,2}, /* T */ {5,5,5,5,7}, /* U */
-    {5,5,5,5,2}, /* V */ {5,5,7,7,5}, /* W */ {5,5,2,5,5}, /* X */
-    {5,5,2,2,2}, /* Y */ {7,1,2,4,7}, /* Z */
-};
+#define FONT8_COUNT ((int)(sizeof(FONT8) / sizeof(FONT8[0])))
+static SDL_Texture *font_tex;
 
-static const Uint8 FONT_DASH[5] = {0,0,7,0,0};
-
-static const Uint8 *font_glyph(char c)
+static void font_init(void)
 {
-    if (c >= '0' && c <= '9') return FONT_DIGITS[c - '0'];
-    if (c >= 'A' && c <= 'Z') return FONT_LETTERS[c - 'A'];
-    if (c >= 'a' && c <= 'z') return FONT_LETTERS[c - 'a'];
-    if (c == '-') return FONT_DASH;
-    return NULL;
+    Uint32 px[FONT8_COUNT * 8 * 8];
+    for (int g = 0; g < FONT8_COUNT; g++)
+        for (int row = 0; row < 8; row++)
+            for (int col = 0; col < 8; col++)
+                px[row * FONT8_COUNT * 8 + g * 8 + col] =
+                    (FONT8[g][row] & (0x80 >> col)) ? 0xFFFFFFFFu : 0x00FFFFFFu;
+    font_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+                                 SDL_TEXTUREACCESS_STATIC, FONT8_COUNT * 8, 8);
+    if (font_tex) {
+        SDL_UpdateTexture(font_tex, NULL, px, FONT8_COUNT * 8 * 4);
+        SDL_SetTextureBlendMode(font_tex, SDL_BLENDMODE_BLEND);
+    }
 }
 
-/* Each character cell is 4x6 game pixels (3x5 glyph + spacing) times scale. */
+static int font_index(char c)
+{
+    if (c >= 'a' && c <= 'z')
+        c = (char)(c - 'a' + 'A');
+    const char *p = strchr(FONT8_CHARS, c);
+    return (c && p) ? (int)(p - FONT8_CHARS) : -1;
+}
+
 static void draw_text(const char *s, int x, int y, int scale,
                       Uint8 r, Uint8 g, Uint8 b)
 {
-    for (; *s; s++, x += 4 * scale) {
-        const Uint8 *gl = font_glyph(*s);
-        if (!gl)
+    if (!font_tex)
+        return;
+    SDL_SetTextureColorMod(font_tex, r, g, b);
+    for (; *s; s++, x += 8 * scale) {
+        int gi = font_index(*s);
+        if (gi < 0)
             continue;
-        for (int row = 0; row < 5; row++) {
-            for (int col = 0; col < 3; col++) {
-                if (gl[row] & (4 >> col))
-                    draw_rect(x + col * scale, y + row * scale,
-                              scale, scale, r, g, b);
-            }
-        }
+        SDL_Rect src = { gi * 8, 0, 8, 8 };
+        SDL_Rect dst = { x, y, 8 * scale, 8 * scale };
+        SDL_RenderCopy(renderer, font_tex, &src, &dst);
     }
 }
 
 static int text_width(const char *s, int scale)
 {
-    return (int)strlen(s) * 4 * scale - scale;
+    return (int)strlen(s) * 8 * scale - scale;
 }
 
 static void draw_text_centered(const char *s, int y, int scale,
@@ -83,17 +82,51 @@ static void draw_text_centered(const char *s, int y, int scale,
     draw_text(s, (GALAGA_WIDTH - text_width(s, scale)) / 2, y, scale, r, g, b);
 }
 
-static void draw_starfield(uint32_t frame, int stage)
+static void draw_text_right(const char *s, int right_x, int y,
+                            Uint8 r, Uint8 g, Uint8 b)
 {
-    unsigned seed = star_seed + stage * 7919u;
-    int layer = (int)(frame % 48);
-    for (int i = 0; i < 56; i++) {
+    draw_text(s, right_x - (int)strlen(s) * 8, y, 1, r, g, b);
+}
+
+/* --- Starfield: one fixed set of stars that scrolls continuously in every
+   phase (no per-stage reseed, no wrap-back jump), two speeds, and the
+   arcade's multicolour twinkle: stars blink in four interleaved groups. --- */
+
+#define STAR_COUNT 72
+static struct { int16_t x, y0; uint8_t speed, col, group; } stars[STAR_COUNT];
+
+static const Uint8 STAR_COLOURS[8][3] = {
+    { 255, 255, 255 }, { 255,  70,  70 }, { 255, 230,  80 }, {  80, 255, 120 },
+    {  80, 220, 255 }, {  90, 110, 255 }, { 255,  90, 230 }, { 255, 160,  60 },
+};
+
+static void starfield_init(uint32_t seed)
+{
+    for (int i = 0; i < STAR_COUNT; i++) {
         seed = seed * 1103515245u + 12345u;
-        int x = (int)((seed >> 16) % GALAGA_WIDTH);
+        stars[i].x = (int16_t)((seed >> 16) % GALAGA_WIDTH);
         seed = seed * 1103515245u + 12345u;
-        int y = (int)(((seed >> 16) + layer * (1 + (i & 3))) % GALAGA_HEIGHT);
-        Uint8 b = (Uint8)(60 + (i % 4) * 20);
-        draw_rect(x, y, 1, 1, b, b, (Uint8)(b + 20));
+        stars[i].y0 = (int16_t)((seed >> 16) % GALAGA_HEIGHT);
+        seed = seed * 1103515245u + 12345u;
+        stars[i].speed = (uint8_t)(1 + ((seed >> 16) % 3 == 0));
+        stars[i].col = (uint8_t)((seed >> 20) & 7);
+        stars[i].group = (uint8_t)(i & 3);
+    }
+}
+
+static void draw_starfield(uint32_t ticks)
+{
+    uint32_t blink = ticks / 12;
+    for (int i = 0; i < STAR_COUNT; i++) {
+        /* each group is dark one quarter of the time, staggered */
+        if (((blink + stars[i].group) & 3) == 0)
+            continue;
+        /* speed 1 = 0.5 px/step (far), 2 = 1 px/step (near) */
+        int y = (int)((stars[i].y0 + (ticks * stars[i].speed) / 2) % GALAGA_HEIGHT);
+        const Uint8 *c = STAR_COLOURS[stars[i].col];
+        int dim = stars[i].speed == 1 ? 150 : 255;
+        draw_rect(stars[i].x, y, 1, 1, (Uint8)(c[0] * dim / 255),
+                  (Uint8)(c[1] * dim / 255), (Uint8)(c[2] * dim / 255));
     }
 }
 
@@ -220,19 +253,34 @@ static void draw_captive(const GameState *state)
                      NULL, &dst, angle, NULL, SDL_FLIP_NONE);
 }
 
+static void format_score(char *buf, size_t n, int v)
+{
+    /* the arcade shows an empty score as "00" */
+    if (v <= 0)
+        snprintf(buf, n, "00");
+    else
+        snprintf(buf, n, "%d", v);
+}
+
 static void draw_hud(const GameState *state)
 {
     char buf[32];
+    bool title = state->phase == GAME_PHASE_TITLE;
 
     /* 1UP blinks while a game is on, as in the arcade */
-    if (state->phase == GAME_PHASE_TITLE || ((state->hud.ticks >> 4) & 1) == 0)
-        draw_text("1UP", 16, 2, 1, 255, 40, 40);
-    snprintf(buf, sizeof(buf), "%d", state->player.score);
-    draw_text(buf, 12, 9, 1, 255, 255, 255);
+    if (title || ((state->hud.ticks >> 4) & 1) == 0)
+        draw_text("1UP", 24, 1, 1, 255, 40, 40);
+    format_score(buf, sizeof(buf), state->player.score);
+    draw_text_right(buf, 56, 9, 255, 255, 255);
 
-    draw_text_centered("HIGH SCORE", 2, 1, 255, 40, 40);
-    snprintf(buf, sizeof(buf), "%d", state->high_score);
-    draw_text_centered(buf, 9, 1, 255, 255, 255);
+    draw_text_centered("HIGH SCORE", 1, 1, 255, 40, 40);
+    format_score(buf, sizeof(buf), state->high_score);
+    draw_text_right(buf, 136, 9, 255, 255, 255);
+
+    if (title) {
+        draw_text("FREE PLAY", 4, GALAGA_HEIGHT - 9, 1, 255, 255, 255);
+        return;
+    }
 
     /* reserve ships, bottom-left */
     int reserve = state->player.lives - 1;
@@ -241,8 +289,91 @@ static void draw_hud(const GameState *state)
     for (int i = 0; i < reserve; i++)
         draw_sprite(sprites_player(), 4 + i * 12, GALAGA_HEIGHT - 12, 10, 10);
 
-    if (state->phase != GAME_PHASE_TITLE)
-        draw_stage_badges(state->player.stage);
+    draw_stage_badges(state->player.stage);
+}
+
+/* --- Attract / title screen. Pages cycle every ATTRACT_CYCLE steps:
+   page 0 reveals the score table line by line, page 1 explains the
+   capture-and-rescue trick. Plain text title; no logo art. --- */
+
+#define ATTRACT_PAGE   480
+#define ATTRACT_CYCLE  (ATTRACT_PAGE * 2)
+
+static void draw_score_row(int y, SDL_Texture *tex, int rack, int dive, bool flip)
+{
+    char buf[8];
+    SDL_Rect dst = { 52, y - 4, 16, 16 };
+    SDL_RenderCopyEx(renderer, tex, NULL, &dst, 0.0, NULL,
+                     flip ? SDL_FLIP_VERTICAL : SDL_FLIP_NONE);
+    snprintf(buf, sizeof(buf), "%d", rack);
+    draw_text_right(buf, 128, y, 255, 255, 255);
+    snprintf(buf, sizeof(buf), "%d", dive);
+    draw_text_right(buf, 184, y, 255, 255, 255);
+}
+
+static void draw_attract(const GameState *state)
+{
+    uint32_t t = state->hud.ticks % ATTRACT_CYCLE;
+    int anim = (int)(state->hud.ticks >> 3) & 1;
+
+    /* title: red with a darker drop shadow */
+    draw_text_centered("GALAGA", 37, 3, 120, 0, 0);
+    draw_text_centered("GALAGA", 36, 3, 255, 40, 40);
+    draw_text_centered("ASSEMBLY EDITION", 66, 1, 90, 230, 255);
+
+    if (t < ATTRACT_PAGE) {
+        int shown = (int)t / 45;              /* lines appear one by one */
+        if (shown >= 1)
+            draw_text_centered("-- SCORE --", 92, 1, 255, 230, 80);
+        if (shown >= 2) {
+            draw_text_right("RACK", 132, 110, 90, 230, 255);
+            draw_text_right("DIVE", 188, 110, 90, 230, 255);
+        }
+        if (shown >= 3)
+            draw_score_row(128, sprites_enemy(ENEMY_TYPE_BEE, anim, 1),
+                           SCORE_BEE_FORMATION, SCORE_BEE_DIVING, false);
+        if (shown >= 4)
+            draw_score_row(148, sprites_enemy(ENEMY_TYPE_BUTTERFLY, anim, 1),
+                           SCORE_BUTTERFLY_FORMATION, SCORE_BUTTERFLY_DIVING, false);
+        if (shown >= 5)
+            draw_score_row(168, sprites_enemy(ENEMY_TYPE_BOSS, anim, 2),
+                           SCORE_BOSS_FORMATION, SCORE_BOSS_DIVING, false);
+        if (shown >= 6)
+            draw_score_row(188, sprites_captive(), 500, 1000, true);
+        if (shown >= 7)
+            draw_text_centered("BOSS + 2 ESCORTS 1600", 208, 1, 255, 230, 80);
+    } else {
+        uint32_t u = t - ATTRACT_PAGE;
+        draw_text_centered("BEWARE THE BOSS BEAM", 92, 1, 255, 230, 80);
+
+        /* boss lowering its beam over a fighter */
+        SDL_Rect boss = { 44, 112, 16, 16 };
+        SDL_RenderCopy(renderer, sprites_enemy(ENEMY_TYPE_BOSS, anim, 2), NULL, &boss);
+        int len = (int)(u < 60 ? u : 60) * 40 / 60;
+        static const Uint8 COL[3][3] = { { 80, 230, 255 }, { 40, 110, 255 }, { 210, 220, 255 } };
+        for (int d = 0; d < len; d += 3) {
+            int half = 5 + d / 6;
+            int k = ((d / 3) + (int)(state->hud.ticks / 3)) % 3;
+            draw_rect(52 - half, 128 + d, half * 2, 2, COL[k][0], COL[k][1], COL[k][2]);
+        }
+        draw_sprite(sprites_player(), 44, 172, 16, 16);
+
+        if (u >= 90) {
+            draw_text(">", 92, 146, 1, 255, 255, 255);
+            /* rescued pair */
+            draw_sprite(sprites_player(), 132, 140, 16, 16);
+            draw_sprite(sprites_player(), 148, 140, 16, 16);
+        }
+        if (u >= 150) {
+            draw_text_centered("SHOOT THE BOSS AS IT", 196, 1, 255, 255, 255);
+            draw_text_centered("DIVES TO FREE YOUR", 208, 1, 255, 255, 255);
+            draw_text_centered("FIGHTER: DOUBLE FIRE!", 220, 1, 255, 255, 255);
+        }
+    }
+
+    if (!((state->hud.ticks >> 5) & 1))
+        draw_text_centered("PRESS FIRE TO START", 240, 1, 255, 255, 255);
+    draw_text_centered("@ 2026 GALAGA-ASSEMBLY", 260, 1, 255, 255, 255);
 }
 
 void render_init(void)
@@ -312,8 +443,9 @@ void render_init(void)
     SDL_RenderSetLogicalSize(renderer, GALAGA_WIDTH, GALAGA_HEIGHT);
     SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
 
-    star_seed = (uint32_t)time(NULL);
+    starfield_init((uint32_t)time(NULL));
     sprites_init(renderer);
+    font_init();
 }
 
 void render_toggle_fullscreen(void)
@@ -325,6 +457,8 @@ void render_toggle_fullscreen(void)
 
 void render_shutdown(void)
 {
+    if (font_tex) SDL_DestroyTexture(font_tex);
+    font_tex = NULL;
     sprites_shutdown();
     if (renderer) SDL_DestroyRenderer(renderer);
     if (window) SDL_DestroyWindow(window);
@@ -336,7 +470,7 @@ void render_frame(const GameState *state)
     SDL_SetRenderDrawColor(renderer, 0, 0, 12, 255);
     SDL_RenderClear(renderer);
 
-    draw_starfield(state->frame, state->player.stage);
+    draw_starfield(state->hud.ticks);
 
     draw_beam(state);
 
@@ -382,25 +516,23 @@ void render_frame(const GameState *state)
     draw_hud(state);
 
     if (state->phase == GAME_PHASE_TITLE) {
-        draw_text_centered("GALAGA", 96, 3, 255, 40, 40);
-        if (!((state->hud.ticks >> 5) & 1))
-            draw_text_centered("PRESS FIRE TO START", 150, 1, 255, 255, 255);
-        draw_text_centered("ASSEMBLY EDITION", 170, 1, 90, 200, 255);
+        draw_attract(state);
     } else if (state->phase == GAME_PHASE_PLAYING) {
         char banner[24];
         if (state->hud.banner == BANNER_PLAYER1) {
-            draw_text_centered("PLAYER 1", 140, 2, 90, 230, 255);
+            draw_text_centered("PLAYER 1", 148, 1, 90, 230, 255);
         } else if (state->hud.banner == BANNER_STAGE) {
             snprintf(banner, sizeof(banner), "STAGE %d", state->player.stage);
-            draw_text_centered(banner, 140, 2, 90, 230, 255);
+            draw_text_centered(banner, 148, 1, 90, 230, 255);
         } else if (state->capture.msg_timer > 0) {
-            draw_text_centered("FIGHTER CAPTURED", 140, 1, 255, 40, 40);
+            draw_text_centered("FIGHTER CAPTURED", 148, 1, 255, 40, 40);
         } else if (state->hud.dead_timer > 0 && state->hud.dead_timer <= PLAYER_READY_STEPS) {
-            draw_text_centered("READY", 140, 2, 90, 230, 255);
+            draw_text_centered("READY", 148, 1, 90, 230, 255);
         }
     } else if (state->phase == GAME_PHASE_GAME_OVER) {
-        draw_text_centered("GAME OVER", 130, 2, 255, 40, 40);
-        draw_text_centered("PRESS FIRE", 150, 1, 255, 255, 255);
+        draw_text_centered("GAME OVER", 140, 1, 90, 230, 255);
+        if (!((state->hud.ticks >> 5) & 1))
+            draw_text_centered("PRESS FIRE", 160, 1, 255, 255, 255);
     }
 
     SDL_RenderPresent(renderer);
