@@ -2,6 +2,18 @@
 
 #include <SDL.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+/* Set from the page's on-screen touch buttons (web/shell.html). */
+static int touch_left, touch_right, touch_fire;
+EMSCRIPTEN_KEEPALIVE void galaga_set_touch(int left, int right, int fire)
+{
+    touch_left = left;
+    touch_right = right;
+    touch_fire = fire;
+}
+#endif
+
 void input_poll(bool *move_left, bool *move_right, bool *fire, bool *quit)
 {
     *move_left = false;
@@ -31,4 +43,9 @@ void input_poll(bool *move_left, bool *move_right, bool *fire, bool *quit)
         *move_right = true;
     if (keys[SDL_SCANCODE_SPACE])
         *fire = true;
+#ifdef __EMSCRIPTEN__
+    *move_left  |= touch_left != 0;
+    *move_right |= touch_right != 0;
+    *fire       |= touch_fire != 0;
+#endif
 }

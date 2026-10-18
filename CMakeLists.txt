@@ -68,6 +68,8 @@ if(GALAGA_IS_EMSCRIPTEN)
     target_link_options(galaga PRIVATE
         -sUSE_SDL=2
         -sALLOW_MEMORY_GROWTH=1
+        -sEXPORTED_FUNCTIONS=_main,_galaga_set_touch
+        -sEXPORTED_RUNTIME_METHODS=ccall
         --shell-file "${CMAKE_SOURCE_DIR}/web/shell.html"
     )
 elseif(WIN32 AND TARGET SDL2::SDL2main)
