@@ -34,12 +34,10 @@ score_add_points:
     mov     dword [rbx + GS_NEXT_EXTRA_LIFE], EXTRA_LIFE_2
     jmp     .check_extra
 .not_first:
-    cmp     eax, EXTRA_LIFE_2
-    jne     .not_second
-    mov     dword [rbx + GS_NEXT_EXTRA_LIFE], EXTRA_LIFE_3
+    ; arcade default: 20k, 70k, then every 70k (140k, 210k, ...)
+    add     eax, EXTRA_LIFE_STEP
+    mov     [rbx + GS_NEXT_EXTRA_LIFE], eax
     jmp     .check_extra
-.not_second:
-    mov     dword [rbx + GS_NEXT_EXTRA_LIFE], 0
 .done:
     pop     rbx
     ret

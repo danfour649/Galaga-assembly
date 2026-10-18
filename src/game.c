@@ -28,15 +28,72 @@ static void maybe_save_high_score(GameState *state, int phase_before)
         state->high_score = state->player.score;
 }
 
+static void hud_begin_stage(GameState *state, bool new_game)
+{
+    Hud *h = &state->hud;
+    h->dead_timer = 0;
+    if (new_game) {
+        h->banner = BANNER_PLAYER1;
+        h->banner_timer = BANNER_PLAYER1_STEPS;
+    } else {
+        h->banner = BANNER_STAGE;
+        h->banner_timer = BANNER_STAGE_STEPS;
+    }
+}
+
+static void hud_tick_banner(Hud *h)
+{
+    if (h->banner_timer <= 0)
+        return;
+    if (--h->banner_timer == 0) {
+        if (h->banner == BANNER_PLAYER1) {
+            h->banner = BANNER_STAGE;
+            h->banner_timer = BANNER_STAGE_STEPS;
+        } else {
+            h->banner = BANNER_NONE;
+        }
+    }
+}
+
+/* Fighter hit: burst, hide it off the playfield, respawn after a pause. */
+static void handle_player_hits(GameState *state, int px, int py)
+{
+    const CollisionHits *hits = &state->last_hits;
+    bool died = false;
+    for (int i = 0; i < hits->count; i++) {
+        if (hits->type[i] == HIT_ENEMY_BODY_PLAYER) {
+            int ei = hits->enemy_idx[i];
+            if (ei >= 0 && ei < MAX_ENEMIES) {
+                const Enemy *e = &state->enemies[ei];
+                effects_spawn_explosion(state, e->x + e->w / 2, e->y + e->h / 2);
+            }
+            died = true;
+        } else if (hits->type[i] == HIT_ENEMY_BULLET_PLAYER) {
+            died = true;
+        }
+    }
+    if (!died)
+        return;
+    effects_spawn_explosion_kind(state, px + state->player.w / 2,
+                                 py + state->player.h / 2, EXPLOSION_PLAYER);
+    state->hud.dead_timer = PLAYER_DEAD_STEPS;
+    state->player.y = GALAGA_HEIGHT + 1000;   /* out of every hitbox */
+}
+
 static void sim_step(GameState *state, bool move_left, bool move_right, bool fire)
 {
     int phase_before = state->phase;
+    Hud *hud = &state->hud;
+
+    hud->ticks++;
     game_state_tick(state, fire ? 1 : 0);
 
     /* game_state_tick (asm or C) spawns the old 5x8 grid when a stage
        starts; replace it with the arcade rack and its fly-in waves. */
-    if (phase_before != GAME_PHASE_PLAYING && state->phase == GAME_PHASE_PLAYING)
+    if (phase_before != GAME_PHASE_PLAYING && state->phase == GAME_PHASE_PLAYING) {
+        hud_begin_stage(state, phase_before == GAME_PHASE_TITLE);
         flight_begin_stage(state);
+    }
 
     if (!game_state_is_playing(state)) {
         effects_tick(state);
@@ -44,16 +101,26 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
         return;
     }
 
-    player_tick(state, 1, move_left ? 1 : 0, move_right ? 1 : 0);
+    hud_tick_banner(hud);
 
-    if (fire)
-        player_try_fire(state);
+    if (hud->dead_timer > 0) {
+        if (--hud->dead_timer == 0) {
+            state->player.x = GALAGA_WIDTH / 2 - state->player.w / 2;
+            state->player.y = GALAGA_HEIGHT - 36;
+        }
+    } else {
+        player_tick(state, 1, move_left ? 1 : 0, move_right ? 1 : 0);
+        if (fire && hud->banner != BANNER_PLAYER1)
+            player_try_fire(state);
+    }
 
+    int px = state->player.x, py = state->player.y;
     flight_tick(state);
     entity_tick_all(state, 2);
     collision_resolve(state, &state->last_hits);
     flight_on_hits(state);
     effects_process_hits(state);
+    handle_player_hits(state, px, py);
     effects_tick(state);
 
     if (state->phase == GAME_PHASE_PLAYING &&

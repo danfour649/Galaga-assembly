@@ -310,6 +310,50 @@ static void test_flight(void)
     expect_int("escort bonus", state.player.score, 1600);
 }
 
+static void test_extra_lives_and_respawn(void)
+{
+    static GameState state;
+    int i, lives;
+
+    memset(&state, 0, sizeof(state));
+    player_init(&state);
+    game_state_init(&state);
+    lives = state.player.lives;
+    score_add_points(&state, 20000);
+    expect_int("extra life 20k", state.player.lives, lives + 1);
+    score_add_points(&state, 50000);
+    expect_int("extra life 70k", state.player.lives, lives + 2);
+    score_add_points(&state, 70000);
+    expect_int("extra life 140k", state.player.lives, lives + 3);
+    score_add_points(&state, 70000);
+    expect_int("extra life 210k", state.player.lives, lives + 4);
+    expect_int("next extra life", state.next_extra_life, 280000);
+
+    /* banners hold the first wave; a hit hides the fighter, then respawns */
+    game_init(&state);
+    game_tick(&state, 1.0f / 60.0f, false, false, true);
+    expect_int("player1 banner", state.hud.banner, BANNER_PLAYER1);
+    for (i = 0; i < BANNER_PLAYER1_STEPS; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("stage banner", state.hud.banner, BANNER_STAGE);
+    expect_int("wave waits", state.enemies[0].y < 0, 1);
+    for (i = 0; i < BANNER_STAGE_STEPS; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("banner done", state.hud.banner, BANNER_NONE);
+
+    lives = state.player.lives;
+    i = entity_spawn(&state, ENTITY_KIND_BULLET, 0, state.player.x + 4, state.player.y + 4);
+    expect_int("enemy shot", i >= 0, 1);
+    game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("hit costs life", state.player.lives, lives - 1);
+    expect_int("dead timer", state.hud.dead_timer > 0, 1);
+    expect_int("fighter hidden", state.player.y > GALAGA_HEIGHT, 1);
+    for (i = 0; i < PLAYER_DEAD_STEPS; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("respawned", state.player.y, GALAGA_HEIGHT - 36);
+    expect_int("respawn timer", state.hud.dead_timer, 0);
+}
+
 int main(void)
 {
     test_overlap();
@@ -319,6 +363,7 @@ int main(void)
     test_entry_dive_and_stage();
     test_high_score_and_step();
     test_flight();
+    test_extra_lives_and_respawn();
     if (failures) {
         fprintf(stderr, "%d failure(s)\n", failures);
         return 1;

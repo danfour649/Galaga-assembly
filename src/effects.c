@@ -1,6 +1,6 @@
 #include "galaga.h"
 
-void effects_spawn_explosion(GameState *gs, int x, int y)
+void effects_spawn_explosion_kind(GameState *gs, int x, int y, int kind)
 {
     for (int i = 0; i < MAX_EXPLOSIONS; i++) {
         Explosion *e = &gs->explosions[i];
@@ -9,9 +9,15 @@ void effects_spawn_explosion(GameState *gs, int x, int y)
         e->active = true;
         e->x = x;
         e->y = y;
-        e->timer = EXPLOSION_FRAMES;
+        e->kind = kind;
+        e->timer = (kind == EXPLOSION_PLAYER) ? PLAYER_EXPLOSION_FRAMES : EXPLOSION_FRAMES;
         return;
     }
+}
+
+void effects_spawn_explosion(GameState *gs, int x, int y)
+{
+    effects_spawn_explosion_kind(gs, x, y, EXPLOSION_ENEMY);
 }
 
 void effects_process_hits(GameState *gs)
@@ -24,6 +30,8 @@ void effects_process_hits(GameState *gs)
         if (ei < 0 || ei >= MAX_ENEMIES)
             continue;
         const Enemy *e = &gs->enemies[ei];
+        if (e->active)      /* first hit on a Boss: no burst, it changes colour */
+            continue;
         effects_spawn_explosion(gs, e->x + e->w / 2, e->y + e->h / 2);
     }
 }

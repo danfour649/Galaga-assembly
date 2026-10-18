@@ -107,5 +107,5 @@
 
 %define EXTRA_LIFE_1        20000
 %define EXTRA_LIFE_2        70000
-%define EXTRA_LIFE_3        150000
+%define EXTRA_LIFE_STEP     70000
 %define STAGE_CLEAR_FRAMES  90

@@ -308,12 +308,11 @@ void score_add_points(GameState *state, int points)
     state->player.score += points;
     while (state->next_extra_life > 0 && state->player.score >= state->next_extra_life) {
         state->player.lives++;
+        /* arcade default: 20k, 70k, then every 70k */
         if (state->next_extra_life == 20000)
             state->next_extra_life = 70000;
-        else if (state->next_extra_life == 70000)
-            state->next_extra_life = 150000;
         else
-            state->next_extra_life = 0;
+            state->next_extra_life += 70000;
     }
 }
 

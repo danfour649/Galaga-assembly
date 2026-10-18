@@ -97,28 +97,106 @@ static void draw_starfield(uint32_t frame, int stage)
     }
 }
 
+static void px_block(int x, int y, int sz, Uint8 r, Uint8 g, Uint8 b)
+{
+    draw_rect(x - sz / 2, y - sz / 2, sz, sz, r, g, b);
+}
+
+/* Pixel starburst, drawn procedurally (no ROM art). Enemy: 12 frames of a
+   core that blooms into eight spikes and scatters. Fighter: a bigger,
+   longer white/red/yellow burst with rotating shards. */
 static void draw_explosion(const Explosion *e)
 {
-    int age = EXPLOSION_FRAMES - e->timer;
-    int size = 6 + age * 2;
-    Uint8 alpha = (Uint8)(255 - age * 18);
-    SDL_SetRenderDrawColor(renderer, 255, 200, 40, alpha);
-    SDL_Rect r = { e->x - size / 2, e->y - size / 2, size, size };
-    SDL_RenderFillRect(renderer, &r);
-    SDL_SetRenderDrawColor(renderer, 255, 80, 20, alpha);
-    r.x += 1;
-    r.y += 1;
-    r.w -= 2;
-    r.h -= 2;
-    if (r.w > 0 && r.h > 0)
-        SDL_RenderFillRect(renderer, &r);
+    static const int DX[8] = { 1, 1, 0, -1, -1, -1, 0, 1 };
+    static const int DY[8] = { 0, 1, 1, 1, 0, -1, -1, -1 };
+
+    if (e->kind == EXPLOSION_PLAYER) {
+        int age = PLAYER_EXPLOSION_FRAMES - e->timer;
+        int phase = age / 6;                  /* 0..7 */
+        if (phase < 2) {
+            px_block(e->x, e->y, 4 + phase * 4, 255, 255, 255);
+            px_block(e->x, e->y, 2 + phase * 2, 255, 220, 60);
+            return;
+        }
+        for (int k = 0; k < 8; k++) {
+            int rot = (k + phase) & 7;
+            int r1 = 3 + phase * 2;
+            int r2 = r1 + 3 + (k & 1) * 3;
+            Uint8 cr = 255, cg = (k & 1) ? 60 : 230, cb = (k & 1) ? 40 : 60;
+            if (phase >= 6) { cr = 160; cg = 40; cb = 40; }
+            px_block(e->x + DX[rot] * r1, e->y + DY[rot] * r1, 2, 255, 255, 255);
+            px_block(e->x + DX[k] * r2, e->y + DY[k] * r2, 2, cr, cg, cb);
+            if (phase < 6)
+                px_block(e->x + DX[k] * (r2 + 3) + DY[k], e->y + DY[k] * (r2 + 3) - DX[k], 1, 255, 160, 40);
+        }
+        if (phase < 5)
+            px_block(e->x, e->y, 4, 255, 120, 40);
+        return;
+    }
+
+    int age = EXPLOSION_FRAMES - e->timer;    /* 0..11 */
+    if (age < 3) {
+        px_block(e->x, e->y, 2 + age * 2, 255, 255, 255);
+        px_block(e->x, e->y, 2 + age, 255, 230, 80);
+        return;
+    }
+    int r = 1 + age;                            /* 4..12 px */
+    for (int k = 0; k < 8; k++) {
+        bool diag = (k & 1);
+        int rr = diag ? (r * 3) / 4 : r;
+        Uint8 cr = 255, cg = diag ? 70 : 220, cb = diag ? 40 : 50;
+        if (age >= 9) { cr = 200; cg = 60; cb = 30; }
+        px_block(e->x + DX[k] * rr, e->y + DY[k] * rr, age < 8 ? 2 : 1, cr, cg, cb);
+        if (age < 8)
+            px_block(e->x + DX[k] * (rr / 2), e->y + DY[k] * (rr / 2), 1, 255, 255, 200);
+    }
+    if (age < 6)
+        px_block(e->x, e->y, 3, 255, 140, 40);
+}
+
+/* Stage badges, bottom right: 50, 30, 20, 10, 5 and 1 pennants, drawn
+   procedurally in the arcade's spirit (largest first, right to left). */
+static int draw_badge(int right_x, int value)
+{
+    int w = (value >= 10) ? 7 : (value == 5 ? 6 : 4);
+    int h = (value == 1) ? 9 : 11;
+    int x = right_x - w;
+    int y = GALAGA_HEIGHT - 2 - h;
+    Uint8 r1, g1, b1, r2, g2, b2;
+    switch (value) {
+    case 50: r1 = 230; g1 = 40;  b1 = 40;  r2 = 255; g2 = 230; b2 = 60;  break;
+    case 30: r1 = 255; g1 = 230; b1 = 60;  r2 = 60;  g2 = 120; b2 = 255; break;
+    case 20: r1 = 230; g1 = 40;  b1 = 40;  r2 = 60;  g2 = 120; b2 = 255; break;
+    case 10: r1 = 60;  g1 = 120; b1 = 255; r2 = 255; g2 = 230; b2 = 60;  break;
+    case 5:  r1 = 230; g1 = 40;  b1 = 40;  r2 = 255; g2 = 255; b2 = 255; break;
+    default: r1 = 255; g1 = 255; b1 = 255; r2 = 230; g2 = 40;  b2 = 40;  break;
+    }
+    draw_rect(x, y, w, h - 3, r1, g1, b1);                 /* flag body */
+    draw_rect(x + 1, y + 2, w - 2, (h - 3) / 2, r2, g2, b2); /* stripe */
+    draw_rect(x + w / 2 - 1, y + h - 4, 2, 2, r1, g1, b1);   /* point */
+    draw_rect(x + w / 2, y + h - 2, 1, 2, r2, g2, b2);
+    return w + 1;
+}
+
+static void draw_stage_badges(int stage)
+{
+    static const int VALS[6] = { 50, 30, 20, 10, 5, 1 };
+    int x = GALAGA_WIDTH - 2;
+    for (int v = 0; v < 6 && x > GALAGA_WIDTH / 2; v++) {
+        while (stage >= VALS[v] && x > GALAGA_WIDTH / 2) {
+            x -= draw_badge(x, VALS[v]);
+            stage -= VALS[v];
+        }
+    }
 }
 
 static void draw_hud(const GameState *state)
 {
     char buf[32];
 
-    draw_text("1UP", 16, 2, 1, 255, 40, 40);
+    /* 1UP blinks while a game is on, as in the arcade */
+    if (state->phase == GAME_PHASE_TITLE || ((state->hud.ticks >> 4) & 1) == 0)
+        draw_text("1UP", 16, 2, 1, 255, 40, 40);
     snprintf(buf, sizeof(buf), "%d", state->player.score);
     draw_text(buf, 12, 9, 1, 255, 255, 255);
 
@@ -133,9 +211,8 @@ static void draw_hud(const GameState *state)
     for (int i = 0; i < reserve; i++)
         draw_sprite(sprites_player(), 4 + i * 12, GALAGA_HEIGHT - 12, 10, 10);
 
-    snprintf(buf, sizeof(buf), "STAGE %d", state->player.stage);
-    draw_text(buf, GALAGA_WIDTH - text_width(buf, 1) - 4, GALAGA_HEIGHT - 9,
-              1, 90, 200, 255);
+    if (state->phase != GAME_PHASE_TITLE)
+        draw_stage_badges(state->player.stage);
 }
 
 void render_init(void)
@@ -251,7 +328,8 @@ void render_frame(const GameState *state)
         );
     }
 
-    if (state->phase != GAME_PHASE_TITLE) {
+    if (state->phase != GAME_PHASE_TITLE && state->phase != GAME_PHASE_GAME_OVER &&
+        state->hud.dead_timer == 0) {
         draw_sprite(
             sprites_player(),
             state->player.x, state->player.y,
@@ -268,11 +346,19 @@ void render_frame(const GameState *state)
 
     if (state->phase == GAME_PHASE_TITLE) {
         draw_text_centered("GALAGA", 96, 3, 255, 40, 40);
-        if (!((state->frame >> 5) & 1))
+        if (!((state->hud.ticks >> 5) & 1))
             draw_text_centered("PRESS FIRE TO START", 150, 1, 255, 255, 255);
         draw_text_centered("ASSEMBLY EDITION", 170, 1, 90, 200, 255);
-    } else if (state->phase == GAME_PHASE_STAGE_CLEAR) {
-        draw_text_centered("STAGE CLEAR", 130, 2, 90, 200, 255);
+    } else if (state->phase == GAME_PHASE_PLAYING) {
+        char banner[24];
+        if (state->hud.banner == BANNER_PLAYER1) {
+            draw_text_centered("PLAYER 1", 140, 2, 90, 230, 255);
+        } else if (state->hud.banner == BANNER_STAGE) {
+            snprintf(banner, sizeof(banner), "STAGE %d", state->player.stage);
+            draw_text_centered(banner, 140, 2, 90, 230, 255);
+        } else if (state->hud.dead_timer > 0 && state->hud.dead_timer <= PLAYER_READY_STEPS) {
+            draw_text_centered("READY", 140, 2, 90, 230, 255);
+        }
     } else if (state->phase == GAME_PHASE_GAME_OVER) {
         draw_text_centered("GAME OVER", 130, 2, 255, 40, 40);
         draw_text_centered("PRESS FIRE", 150, 1, 255, 255, 255);
