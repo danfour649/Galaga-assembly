@@ -562,6 +562,66 @@ static void test_synth_and_sound_watch(void)
     expect_int("shot sound once", (w.played >> SND_SHOT) & 1, 0);
 }
 
+static void test_shots_hits_and_results(void)
+{
+    static GameState state;
+    int i, live;
+
+    game_init(&state);
+    state.flight.rng = 31337;
+    game_tick(&state, 1.0f / 60.0f, false, false, true);
+    for (i = 0; i < BANNER_PLAYER1_STEPS + BANNER_STAGE_STEPS + 2; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("counters start at 0", state.hud.shots + state.hud.hits, 0);
+
+    /* park every enemy away; fire 3 single shots into empty space */
+    for (i = 0; i < MAX_ENEMIES; i++)
+        state.enemies[i].active = false;
+    state.enemies[0].active = true;          /* keep the stage alive */
+    state.enemies[0].x = 0; state.enemies[0].y = 0;
+    state.flight.f[0].mode = 0;
+    for (int k = 0; k < 3; k++) {
+        game_tick(&state, 1.0f / 60.0f, false, false, true);
+        for (i = 0; i < 200; i++) {
+            live = 0;
+            for (int b = 0; b < MAX_BULLETS; b++)
+                live += state.bullets[b].active && state.bullets[b].from_player;
+            if (!live) break;
+            game_tick(&state, 1.0f / 60.0f, false, false, false);
+        }
+    }
+    expect_int("3 shots fired", state.hud.shots, 3);
+    expect_int("no hits", state.hud.hits, 0);
+
+    /* a shot straight into an enemy above the fighter is a hit */
+    Enemy *e = &state.enemies[1];
+    memset(e, 0, sizeof(*e));
+    e->active = true; e->type = ENEMY_TYPE_BEE; e->hp = 1; e->w = 14; e->h = 14;
+    e->state = ENEMY_STATE_FORMATION;
+    e->x = state.player.x + 1; e->y = state.player.y - 40;
+    state.flight.f[1].mode = 0;
+    game_tick(&state, 1.0f / 60.0f, false, false, true);
+    for (i = 0; i < 30 && state.enemies[1].active; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("4 shots fired", state.hud.shots, 4);
+    expect_int("1 hit", state.hud.hits, 1);
+
+    /* game over: fire is ignored until results are up, then auto title */
+    state.player.lives = 1;
+    player_lose_life(&state);
+    expect_int("game over", state.phase, GAME_PHASE_GAME_OVER);
+    for (i = 0; i < GAMEOVER_FIRE_LOCK - 5; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, true);
+    expect_int("fire locked on results", state.phase, GAME_PHASE_GAME_OVER);
+    expect_int("results showing", state.hud.over_t >= GAMEOVER_RESULTS_AT, 1);
+    for (i = 0; i < GAMEOVER_TITLE_AT; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("back to title", state.phase, GAME_PHASE_TITLE);
+    game_tick(&state, 1.0f / 60.0f, false, false, true);
+    expect_int("new game resets shots", state.hud.shots, 0);
+    expect_int("new game resets hits", state.hud.hits, 0);
+}
+
 int main(void)
 {
     test_overlap();
@@ -575,6 +635,7 @@ int main(void)
     test_capture_and_dual();
     test_challenging_stage();
     test_synth_and_sound_watch();
+    test_shots_hits_and_results();
     if (failures) {
         fprintf(stderr, "%d failure(s)\n", failures);
         return 1;

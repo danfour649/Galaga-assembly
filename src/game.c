@@ -28,6 +28,29 @@ static void maybe_save_high_score(GameState *state, int phase_before)
         state->high_score = state->player.score;
 }
 
+/* Back on the title: clear the playfield so no rack, shots or bursts
+   linger behind the attract screen. */
+static void clear_field(GameState *state)
+{
+    memset(state->enemies, 0, sizeof(state->enemies));
+    memset(state->bullets, 0, sizeof(state->bullets));
+    memset(state->explosions, 0, sizeof(state->explosions));
+    memset(&state->challenge, 0, sizeof(state->challenge));
+    capture_reset(state, true);
+    state->hud.dead_timer = 0;
+    state->hud.banner = BANNER_NONE;
+    state->hud.banner_timer = 0;
+}
+
+static int player_bullets_live(const GameState *state)
+{
+    int n = 0;
+    for (int i = 0; i < MAX_BULLETS; i++)
+        if (state->bullets[i].active && state->bullets[i].from_player)
+            n++;
+    return n;
+}
+
 static void hud_begin_stage(GameState *state, bool new_game)
 {
     Hud *h = &state->hud;
@@ -38,6 +61,8 @@ static void hud_begin_stage(GameState *state, bool new_game)
     }
     h->dead_timer = 0;
     if (new_game) {
+        h->shots = 0;
+        h->hits = 0;
         h->banner = BANNER_PLAYER1;
         h->banner_timer = BANNER_PLAYER1_STEPS;
     } else {
@@ -100,7 +125,25 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
     Hud *hud = &state->hud;
 
     hud->ticks++;
+    if (state->phase == GAME_PHASE_GAME_OVER) {
+        /* hold the results screen, then go back to the title by itself */
+        if (++hud->over_t >= GAMEOVER_TITLE_AT) {
+            state->phase = GAME_PHASE_TITLE;
+            state->game_over = false;
+            state->frame = 0;
+            player_init(state);
+            hud->over_t = 0;
+            clear_field(state);
+            return;
+        }
+        if (hud->over_t < GAMEOVER_FIRE_LOCK)
+            fire = false;
+    } else {
+        hud->over_t = 0;
+    }
     game_state_tick(state, fire ? 1 : 0);
+    if (phase_before != GAME_PHASE_TITLE && state->phase == GAME_PHASE_TITLE)
+        clear_field(state);
 
     /* game_state_tick (asm or C) spawns the old 5x8 grid when a stage
        starts; replace it with the arcade rack and its fly-in waves. */
@@ -125,8 +168,13 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
         }
     } else {
         player_tick(state, 1, move_left ? 1 : 0, move_right ? 1 : 0);
-        if (fire && hud->banner != BANNER_PLAYER1)
+        if (fire && hud->banner != BANNER_PLAYER1) {
+            int before = player_bullets_live(state);
             capture_fire(state);
+            int fired = player_bullets_live(state) - before;
+            if (fired > 0)
+                hud->shots += fired;
+        }
     }
 
     int px = state->player.x, py = state->player.y;
@@ -134,6 +182,9 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
     capture_tick(state);
     entity_tick_all(state, 2);
     collision_resolve(state, &state->last_hits);
+    for (int i = 0; i < state->last_hits.count; i++)
+        if (state->last_hits.type[i] == HIT_PLAYER_BULLET_ENEMY)
+            hud->hits++;
     capture_on_hits(state);
     flight_on_hits(state);
     effects_process_hits(state);

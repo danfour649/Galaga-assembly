@@ -311,6 +311,28 @@ static void draw_score_row(int y, SDL_Texture *tex, int rack, int dive, bool fli
     draw_text_right(buf, 184, y, 255, 255, 255);
 }
 
+/* Post-game results, as on the arcade: shots, hits and hit-miss ratio. */
+static void draw_results(const GameState *state)
+{
+    const Hud *h = &state->hud;
+    char buf[16];
+    int hits = h->hits > h->shots ? h->shots : h->hits;
+    int tenths = h->shots > 0 ? (int)((hits * 1000LL + h->shots / 2) / h->shots) : 0;
+
+    draw_text_centered("-RESULTS-", 104, 1, 255, 40, 40);
+    draw_text("SHOTS FIRED", 16, 132, 1, 255, 230, 80);
+    snprintf(buf, sizeof(buf), "%d", h->shots);
+    draw_text_right(buf, 208, 132, 255, 255, 255);
+    draw_text("NUMBER OF HITS", 16, 152, 1, 255, 230, 80);
+    snprintf(buf, sizeof(buf), "%d", hits);
+    draw_text_right(buf, 208, 152, 255, 255, 255);
+    draw_text("HIT-MISS RATIO", 16, 172, 1, 255, 230, 80);
+    snprintf(buf, sizeof(buf), "%d.%d %%", tenths / 10, tenths % 10);
+    draw_text_right(buf, 208, 172, 255, 255, 255);
+    if (h->over_t >= GAMEOVER_FIRE_LOCK && !((h->ticks >> 5) & 1))
+        draw_text_centered("PRESS FIRE", 212, 1, 255, 255, 255);
+}
+
 /* Challenging-stage results: hit count, then the bonus (or PERFECT!). */
 static void draw_challenge_result(const GameState *state)
 {
@@ -501,7 +523,9 @@ void render_frame(const GameState *state)
     draw_beam(state);
 
     int anim = (int)(state->frame >> 3) & 1;
-    for (int i = 0; i < MAX_ENEMIES; i++) {
+    bool results = state->phase == GAME_PHASE_GAME_OVER &&
+                   state->hud.over_t >= GAMEOVER_RESULTS_AT;
+    for (int i = 0; i < MAX_ENEMIES && !results; i++) {
         const Enemy *e = &state->enemies[i];
         if (!e->active)
             continue;
@@ -515,7 +539,7 @@ void render_frame(const GameState *state)
                     e->x - 1, e->y - 1, 16, 16);
     }
 
-    for (int i = 0; i < MAX_BULLETS; i++) {
+    for (int i = 0; i < MAX_BULLETS && !results; i++) {
         const Bullet *b = &state->bullets[i];
         if (!b->active)
             continue;
@@ -561,9 +585,10 @@ void render_frame(const GameState *state)
             draw_text_centered("READY", 148, 1, 90, 230, 255);
         }
     } else if (state->phase == GAME_PHASE_GAME_OVER) {
-        draw_text_centered("GAME OVER", 140, 1, 90, 230, 255);
-        if (!((state->hud.ticks >> 5) & 1))
-            draw_text_centered("PRESS FIRE", 160, 1, 255, 255, 255);
+        if (state->hud.over_t < GAMEOVER_RESULTS_AT)
+            draw_text_centered("GAME OVER", 140, 1, 90, 230, 255);
+        else
+            draw_results(state);
     }
 
     SDL_RenderPresent(renderer);
