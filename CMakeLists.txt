@@ -72,7 +72,7 @@ if(GALAGA_IS_EMSCRIPTEN)
     target_link_options(galaga PRIVATE
         -sUSE_SDL=2
         -sALLOW_MEMORY_GROWTH=1
-        -sEXPORTED_FUNCTIONS=_main,_galaga_set_touch,_galaga_audio_unlock,_galaga_set_mute,_galaga_audio_state
+        -sEXPORTED_FUNCTIONS=_main,_galaga_set_touch,_galaga_audio_unlock,_galaga_set_mute,_galaga_audio_state,_galaga_save_progress
         -sEXPORTED_RUNTIME_METHODS=ccall
         --shell-file "${CMAKE_SOURCE_DIR}/web/shell.html"
     )

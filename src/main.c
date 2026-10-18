@@ -7,6 +7,12 @@
 #include <emscripten.h>
 
 static GameState g_state;
+
+/* Called by the page when it is hidden or closed (web/shell.html). */
+EMSCRIPTEN_KEEPALIVE void galaga_save_progress(void)
+{
+    game_save_progress(&g_state);
+}
 static Uint64    g_prev;
 static double    g_freq;
 
@@ -73,6 +79,7 @@ int main(int argc, char *argv[])
         render_frame(&state);
     }
 
+    game_save_progress(&state);
     audio_shutdown();
     render_shutdown();
     return 0;

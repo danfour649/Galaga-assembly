@@ -5,13 +5,17 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 
+/* localStorage can be missing or throw (private mode, storage blocked):
+   then the high score just lasts for this visit. */
 EM_JS(int, high_score_load_js, (void), {
-    var v = localStorage.getItem('galaga_hi');
-    return v ? (parseInt(v, 10) || 0) : 0;
+    try {
+        var v = localStorage.getItem('galaga_hi');
+        return v ? (parseInt(v, 10) || 0) : 0;
+    } catch (e) { return 0; }
 });
 
 EM_JS(void, high_score_save_js, (int score), {
-    localStorage.setItem('galaga_hi', score);
+    try { localStorage.setItem('galaga_hi', String(score)); } catch (e) {}
 });
 #endif
 
