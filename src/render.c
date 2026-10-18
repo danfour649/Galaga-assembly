@@ -147,6 +147,7 @@ void render_init(void)
 
     /* Largest integer scale that fits ~90% of the desktop height. */
     int scale = GALAGA_SCALE;
+#ifndef __EMSCRIPTEN__
     SDL_Rect usable;
     if (SDL_GetDisplayUsableBounds(0, &usable) == 0) {
         int fit = (usable.h * 9 / 10) / GALAGA_HEIGHT;
@@ -156,6 +157,7 @@ void render_init(void)
         if (fit > scale)
             scale = fit;
     }
+#endif
     int win_w = GALAGA_WIDTH * scale;
     int win_h = GALAGA_HEIGHT * scale;
 
@@ -165,7 +167,14 @@ void render_init(void)
         SDL_WINDOWPOS_CENTERED,
         win_w,
         win_h,
+#ifdef __EMSCRIPTEN__
+        /* RESIZABLE makes SDL's Emscripten backend copy the canvas CSS size
+           back into the window size; with the shell's border/max-width that
+           shrinks the canvas to a few pixels. Fixed backbuffer; CSS scales. */
+        SDL_WINDOW_SHOWN
+#else
         SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
+#endif
     );
     if (!window) {
         fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
