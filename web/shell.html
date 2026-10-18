@@ -28,6 +28,14 @@
             color: #c8d0e8;
             font-family: system-ui, -apple-system, sans-serif;
         }
+        header { display: flex; align-items: center; gap: .75rem; }
+        #mute {
+            width: 2.75rem; height: 2.75rem; border-radius: 50%;
+            border: 2px solid #3a3a58; background: #1a1a30; color: #c8d0e8;
+            font-size: 1.15rem; line-height: 1; padding: 0; cursor: pointer;
+            touch-action: manipulation;
+        }
+        #mute[aria-pressed="true"] { color: #6a7290; }
         h1 {
             margin: 0;
             font-size: 1.25rem;
@@ -84,7 +92,10 @@
     {{{ SCRIPT }}}
 </head>
 <body>
-    <h1>Galaga-assembly</h1>
+    <header>
+        <h1>Galaga-assembly</h1>
+        <button id="mute" aria-label="Mute sound" aria-pressed="false" title="Sound on/off (M)">&#128266;</button>
+    </header>
     <div id="frame"><canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas></div>
     <div id="touch">
         <button data-k="left" aria-label="Left">&#9664;</button>
@@ -94,7 +105,7 @@
     <div id="status">Loading…</div>
     <p class="help">
         Click the game to focus, then use <kbd>←</kbd><kbd>→</kbd> or <kbd>A</kbd><kbd>D</kbd> to move,
-        <kbd>Space</kbd> to fire.<br>
+        <kbd>Space</kbd> to fire, <kbd>M</kbd> to mute.<br>
         Gameplay runs in C with assembly logic mirrored by portable fallbacks for the web build.
     </p>
     <script>
@@ -117,6 +128,35 @@
                 if (Module._galaga_set_touch)
                     Module._galaga_set_touch(held.left, held.right, held.fire);
             }
+            /* Sound: the audio device is opened only inside a user gesture
+               (mobile autoplay rules). Mute is remembered on this device. */
+            var muteBtn = document.getElementById('mute');
+            var muted = false;
+            try { muted = localStorage.getItem('galaga-muted') === '1'; } catch (e) {}
+            function showMute() {
+                muteBtn.innerHTML = muted ? '&#128263;' : '&#128266;';
+                muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+                muteBtn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+            }
+            function applyMute() {
+                if (Module._galaga_set_mute) Module._galaga_set_mute(muted ? 1 : 0);
+                try { localStorage.setItem('galaga-muted', muted ? '1' : '0'); } catch (e) {}
+                showMute();
+            }
+            function toggleMute() { muted = !muted; applyMute(); }
+            function unlock() {
+                if (!Module._galaga_audio_unlock) return;
+                Module._galaga_audio_unlock();
+                if (Module._galaga_set_mute) Module._galaga_set_mute(muted ? 1 : 0);
+            }
+            ['pointerdown', 'keydown', 'touchend'].forEach(function (t) {
+                document.addEventListener(t, unlock, true);
+            });
+            muteBtn.addEventListener('click', function (e) { e.preventDefault(); toggleMute(); muteBtn.blur(); canvas.focus(); });
+            document.addEventListener('keydown', function (e) {
+                if ((e.key === 'm' || e.key === 'M') && !e.repeat) toggleMute();
+            });
+            showMute();
             document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
             document.addEventListener('dblclick', function (e) { e.preventDefault(); });
             document.querySelectorAll('#touch button').forEach(function (b) {
