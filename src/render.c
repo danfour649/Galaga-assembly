@@ -311,6 +311,32 @@ static void draw_score_row(int y, SDL_Texture *tex, int rack, int dive, bool fli
     draw_text_right(buf, 184, y, 255, 255, 255);
 }
 
+/* Challenging-stage results: hit count, then the bonus (or PERFECT!). */
+static void draw_challenge_result(const GameState *state)
+{
+    const Challenge *c = &state->challenge;
+    int t = CHALLENGE_RESULT_STEPS - c->result_timer;
+    char buf[32];
+    bool perfect = c->hits >= CHALLENGE_GROUPS * CHALLENGE_PER_GROUP;
+
+    if (perfect) {
+        if ((t >> 4) & 1)
+            draw_text_centered("PERFECT !", 120, 1, 255, 40, 40);
+    }
+    snprintf(buf, sizeof(buf), "NUMBER OF HITS  %d", c->hits);
+    draw_text(buf, 28, 140, 1, 90, 230, 255);
+    if (t >= CHALLENGE_BONUS_STEP) {
+        if (perfect) {
+            draw_text_centered("SPECIAL BONUS", 160, 1, 255, 230, 80);
+            snprintf(buf, sizeof(buf), "%d PTS", CHALLENGE_PERFECT_BONUS);
+            draw_text_centered(buf, 172, 1, 255, 230, 80);
+        } else {
+            snprintf(buf, sizeof(buf), "BONUS  %d", c->bonus);
+            draw_text(buf, 28, 160, 1, 255, 230, 80);
+        }
+    }
+}
+
 static void draw_attract(const GameState *state)
 {
     uint32_t t = state->hud.ticks % ATTRACT_CYCLE;
@@ -522,8 +548,13 @@ void render_frame(const GameState *state)
         if (state->hud.banner == BANNER_PLAYER1) {
             draw_text_centered("PLAYER 1", 148, 1, 90, 230, 255);
         } else if (state->hud.banner == BANNER_STAGE) {
-            snprintf(banner, sizeof(banner), "STAGE %d", state->player.stage);
+            if (state->challenge.active)
+                snprintf(banner, sizeof(banner), "CHALLENGING STAGE");
+            else
+                snprintf(banner, sizeof(banner), "STAGE %d", state->player.stage);
             draw_text_centered(banner, 148, 1, 90, 230, 255);
+        } else if (state->challenge.result == 1) {
+            draw_challenge_result(state);
         } else if (state->capture.msg_timer > 0) {
             draw_text_centered("FIGHTER CAPTURED", 148, 1, 255, 40, 40);
         } else if (state->hud.dead_timer > 0 && state->hud.dead_timer <= PLAYER_READY_STEPS) {

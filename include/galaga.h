@@ -132,6 +132,25 @@ typedef struct {
     int   dual;          /* two fighters side by side */
 } Capture;
 
+/* Challenging stage (3, 7, 11, ...): 40 non-firing enemies in five groups
+   of 8 fly preset paths and leave; hits are counted for a bonus. */
+#define CHALLENGE_GROUPS        5
+#define CHALLENGE_PER_GROUP     8
+#define CHALLENGE_HIT_POINTS    100
+#define CHALLENGE_PERFECT_BONUS 10000
+#define CHALLENGE_RESULT_STEPS  300
+#define CHALLENGE_BONUS_STEP    60   /* result line 2 appears after this */
+typedef struct {
+    int active;                   /* this stage is a challenging stage */
+    int index;                    /* 0 for stage 3, 1 for stage 7, ... */
+    int hits;
+    int group_left[CHALLENGE_GROUPS];  /* ships still flying per group */
+    int group_hits[CHALLENGE_GROUPS];
+    int result;                   /* 0 flying, 1 showing results, 2 done */
+    int result_timer;
+    int bonus;                    /* awarded at the end (hits*100 or 10000) */
+} Challenge;
+
 /* Presentation state owned by game.c (C on every backend). */
 typedef struct {
     uint32_t ticks;        /* sim steps in every phase (blink, starfield) */
@@ -184,6 +203,7 @@ typedef struct {
     FlightState   flight;   /* C-only from here: not mirrored in galaga.inc */
     Hud           hud;
     Capture       capture;
+    Challenge     challenge;
 } GameState;
 
 int  rect_overlap(const Rect *a, const Rect *b);
@@ -205,6 +225,8 @@ void enemies_spawn_formation(GameState *state);
 
 /* Arcade-style flight (src/flight.c, portable C on every backend). */
 void flight_begin_stage(GameState *state);
+int  flight_is_challenge_stage(int stage);
+int  flight_stage_finished(GameState *state);
 void flight_tick(GameState *state);
 void flight_on_hits(GameState *state);
 void flight_start_beam_dive(GameState *state, int boss);

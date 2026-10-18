@@ -34,6 +34,7 @@
 #define FLIGHT_ESCORT    7  /* following a diving Boss */
 #define FLIGHT_BEAM_GO   8  /* Boss heading for its tractor-beam spot */
 #define FLIGHT_BEAM      9  /* Boss parked, beam handled by capture.c */
+#define FLIGHT_CH_EXIT  10  /* challenging stage: path done, fly straight off */
 
 #define PI_F 3.14159265f
 #define DEG(a) ((a) * (PI_F / 180.0f))
@@ -45,9 +46,13 @@
 #define HALF         7.0f      /* enemy hitbox is 14x14 */
 
 typedef struct { int steps; float turn; } Seg;
-typedef struct { float x, y, heading, speed; Seg seg[4]; } Prog;
+#define PROG_SEGS 6
+typedef struct { float x, y, heading, speed; Seg seg[PROG_SEGS]; } Prog;
 
-enum { PROG_TOP, PROG_BOTTOM, PROG_COUNT };
+enum { PROG_TOP, PROG_BOTTOM,
+       PROG_CH_DIP, PROG_CH_SIDE, PROG_CH_SWIRL, PROG_CH_WAVE, PROG_CH_HAIRPIN,
+       PROG_COUNT };
+#define PROG_CH_FIRST PROG_CH_DIP
 
 /* Defined for side = +1; side = -1 mirrors around x = 112. */
 static const Prog PROGS[PROG_COUNT] = {
@@ -55,6 +60,18 @@ static const Prog PROGS[PROG_COUNT] = {
     { 98.0f, -10.0f, 90.0f, 2.6f, { {26, 0.0f}, {70, 3.6f}, {0, 0} } },
     /* in from the lower left, climb and loop toward the centre */
     { -10.0f, 250.0f, -38.0f, 2.6f, { {30, 0.0f}, {16, -1.5f}, {64, 5.4f}, {0, 0} } },
+
+    /* challenging-stage paths: fly through and leave (FLIGHT_CH_EXIT) */
+    /* straight down, a full loop outward, then off the bottom */
+    { 92.0f, -10.0f, 90.0f, 2.6f, { {40, 0.0f}, {90, 4.0f}, {110, 0.0f}, {0, 0} } },
+    /* up from the lower side, loop, cross to the far top corner */
+    { -10.0f, 236.0f, -30.0f, 2.6f, { {40, 0.0f}, {90, 4.0f}, {110, 0.0f}, {0, 0} } },
+    /* in from the top, wide loop the other way, out the bottom */
+    { 64.0f, -10.0f, 70.0f, 2.6f, { {36, 0.0f}, {120, -3.0f}, {90, 0.0f}, {0, 0} } },
+    /* across the screen in a wave */
+    { -10.0f, 100.0f, 20.0f, 2.6f, { {30, 0.0f}, {30, -2.5f}, {40, 2.5f}, {30, -2.5f}, {70, 0.0f}, {0, 0} } },
+    /* in from the side, hairpin loop up, back out the same side */
+    { -10.0f, 150.0f, 0.0f, 2.6f, { {46, 0.0f}, {45, -4.0f}, {80, 0.0f}, {0, 0} } },
 };
 
 /* --- small helpers ------------------------------------------------------ */
@@ -179,6 +196,44 @@ static int add_enemy(GameState *s, int idx, int type, int col, int row,
     return idx + 1;
 }
 
+int flight_is_challenge_stage(int stage)
+{
+    return stage >= 3 && (stage - 3) % 4 == 0;
+}
+
+/* Five groups of 8, two mirrored files of 4 (or one file of 8) per group,
+   on a path set that rotates with each challenging stage. */
+static void begin_challenge(GameState *s)
+{
+    static const int ORDER[5] = {
+        PROG_CH_DIP, PROG_CH_SIDE, PROG_CH_SWIRL, PROG_CH_WAVE, PROG_CH_HAIRPIN
+    };
+    Challenge *c = &s->challenge;
+    int i = 0;
+    const int gap = 150, file = 8;
+
+    c->active = 1;
+    c->index = (s->player.stage - 3) / 4;
+    for (int g = 0; g < CHALLENGE_GROUPS; g++) {
+        int prog = ORDER[(g + c->index) % 5];
+        int type = (g & 1) ? ENEMY_TYPE_BUTTERFLY : ENEMY_TYPE_BEE;
+        bool single_file = ((g + c->index) % 3) == 2;
+        c->group_left[g] = CHALLENGE_PER_GROUP;
+        for (int j = 0; j < CHALLENGE_PER_GROUP; j++) {
+            int side, delay;
+            if (single_file) {
+                side = (c->index & 1) ? -1 : +1;
+                delay = 20 + g * gap + j * file;
+            } else {
+                side = (j & 1) ? -1 : +1;
+                delay = 20 + g * gap + (j >> 1) * file;
+            }
+            i = add_enemy(s, i, type, j, g, prog, side, delay);
+        }
+    }
+    s->flight.formed = 1;   /* nothing to form; also disables sway */
+}
+
 void flight_begin_stage(GameState *s)
 {
     uint32_t rng = s->flight.rng;
@@ -191,6 +246,11 @@ void flight_begin_stage(GameState *s)
     s->flight.rng = rng;
     for (j = 0; j < MAX_ENEMIES; j++)
         s->flight.f[j].leader = -1;
+    memset(&s->challenge, 0, sizeof(s->challenge));
+    if (flight_is_challenge_stage(s->player.stage)) {
+        begin_challenge(s);
+        return;
+    }
 
     /* Wave 1: two files from the top. Butterflies loop left, bees loop right. */
     for (j = 0; j < 4; j++) {
@@ -394,15 +454,16 @@ static void tick_one(GameState *s, int idx)
         const Seg *sg = &PROGS[f->prog].seg[f->seg];
         f->heading += sg->turn * (float)f->side;
         advance(f);
-        if (stage >= 2 && f->seg == 1 && f->seg_t == 6 && (rnd(s) & 3) == 0) {
+        if (stage >= 2 && !s->challenge.active && f->seg == 1 && f->seg_t == 6 &&
+            (rnd(s) & 3) == 0) {
             sync_enemy(e, f);
             enemy_fire(s, e);
         }
         if (++f->seg_t >= sg->steps) {
             f->seg++;
             f->seg_t = 0;
-            if (f->seg >= 4 || PROGS[f->prog].seg[f->seg].steps == 0)
-                f->mode = FLIGHT_SEEK;
+            if (f->seg >= PROG_SEGS || PROGS[f->prog].seg[f->seg].steps == 0)
+                f->mode = (f->prog >= PROG_CH_FIRST) ? FLIGHT_CH_EXIT : FLIGHT_SEEK;
         }
         break;
     }
@@ -463,6 +524,10 @@ static void tick_one(GameState *s, int idx)
     case FLIGHT_BEAM:
         break;       /* parked; capture.c runs the beam */
 
+    case FLIGHT_CH_EXIT:
+        advance(f);
+        break;
+
     case FLIGHT_ESCORT: {
         const Enemy *L = (f->leader >= 0) ? &s->enemies[f->leader] : NULL;
         const Flight *lf = (f->leader >= 0) ? &s->flight.f[f->leader] : NULL;
@@ -505,6 +570,18 @@ static void tick_one(GameState *s, int idx)
         return;
     }
 
+    /* challenging stage: a ship that has flown its path off screen is gone */
+    if (f->prog >= PROG_CH_FIRST &&
+        (f->mode == FLIGHT_CH_EXIT || (f->mode == FLIGHT_PATH && f->seg > 0)) &&
+        (f->fy > (float)GALAGA_HEIGHT + 12.0f || f->fy < -24.0f ||
+         f->fx < -24.0f || f->fx > (float)GALAGA_WIDTH + 24.0f)) {
+        e->active = false;
+        f->mode = FLIGHT_NONE;
+        if (f->row >= 0 && f->row < CHALLENGE_GROUPS)
+            s->challenge.group_left[f->row]--;
+        return;
+    }
+
     if (is_diving_mode(f->mode) &&
         (f->fy > (float)GALAGA_HEIGHT + 12.0f || f->fx < -40.0f ||
          f->fx > (float)GALAGA_WIDTH + 40.0f || f->fy < -60.0f))
@@ -532,10 +609,15 @@ void flight_tick(GameState *s)
         if (!s->enemies[i].active || fs->f[i].mode == FLIGHT_NONE)
             continue;
         tick_one(s, i);
+        if (s->challenge.active)
+            continue;
         if (fs->f[i].mode == FLIGHT_WAIT || fs->f[i].mode == FLIGHT_PATH ||
             (fs->f[i].mode == FLIGHT_SEEK && s->enemies[i].state == ENEMY_STATE_ENTERING))
             all_home = 0;
     }
+
+    if (s->challenge.active)
+        return;          /* no rack, no dives: the groups just fly through */
 
     if (!fs->formed) {
         /* switch to breathing when the sway passes through centre */
@@ -565,6 +647,28 @@ void flight_on_hits(GameState *s)
         if (s->enemies[ei].active)
             continue;
         f = &s->flight.f[ei];
+        if (s->challenge.active && f->prog >= PROG_CH_FIRST && f->mode != FLIGHT_NONE) {
+            Challenge *c = &s->challenge;
+            const Enemy *e = &s->enemies[ei];
+            int g = f->row;
+            /* every challenge kill is worth 100: top up the rack value
+               the shared scoring code just awarded */
+            int paid = (e->type == ENEMY_TYPE_BUTTERFLY) ? SCORE_BUTTERFLY_FORMATION
+                                                         : SCORE_BEE_FORMATION;
+            if (CHALLENGE_HIT_POINTS > paid)
+                score_add_points(s, CHALLENGE_HIT_POINTS - paid);
+            c->hits++;
+            if (g >= 0 && g < CHALLENGE_GROUPS) {
+                c->group_left[g]--;
+                /* whole group shot down: group bonus */
+                if (++c->group_hits[g] == CHALLENGE_PER_GROUP) {
+                    static const int GROUP_BONUS[4] = { 1000, 1500, 2000, 3000 };
+                    score_add_points(s, GROUP_BONUS[c->index < 3 ? c->index : 3]);
+                }
+            }
+            f->mode = FLIGHT_NONE;
+            continue;
+        }
         if (f->mode == FLIGHT_ESCORT && f->leader >= 0 &&
             s->enemies[f->leader].active)
             s->flight.f[f->leader].escorts_lost++;
@@ -577,4 +681,28 @@ void flight_on_hits(GameState *s)
         }
         f->mode = FLIGHT_NONE;
     }
+}
+
+/* Called while the stage is otherwise over (no enemies left). Normal
+   stages end at once; a challenging stage first shows its results. */
+int flight_stage_finished(GameState *s)
+{
+    Challenge *c = &s->challenge;
+    if (!c->active || c->result == 2)
+        return 1;
+    if (c->result == 0) {
+        c->result = 1;
+        c->result_timer = CHALLENGE_RESULT_STEPS;
+        c->bonus = (c->hits >= CHALLENGE_GROUPS * CHALLENGE_PER_GROUP)
+                       ? CHALLENGE_PERFECT_BONUS
+                       : c->hits * CHALLENGE_HIT_POINTS;
+        return 0;
+    }
+    if (c->result_timer == CHALLENGE_RESULT_STEPS - CHALLENGE_BONUS_STEP && c->bonus > 0)
+        score_add_points(s, c->bonus);
+    if (--c->result_timer <= 0) {
+        c->result = 2;
+        return 1;
+    }
+    return 0;
 }
