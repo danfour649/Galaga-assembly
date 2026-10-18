@@ -148,20 +148,10 @@ jobs:
           path: build-web
 
       - name: Add site index
+        # Serve the game itself at the site root (short link, no redirect).
+        # galaga.html stays for old links; both load the same galaga.js/wasm.
         run: |
-          cat > build-web/index.html <<'EOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta http-equiv="refresh" content="0; url=galaga.html">
-            <title>Galaga-assembly</title>
-          </head>
-          <body>
-            <p><a href="galaga.html">Play Galaga-assembly</a></p>
-          </body>
-          </html>
-          EOF
+          cp build-web/galaga.html build-web/index.html
           touch build-web/.nojekyll
 
       - name: Set up Pages

@@ -64,9 +64,9 @@ Every push/PR compiles the WASM target in GitHub Actions (`wasm` job) and upload
 
 Every push to `main` deploys the WASM build to GitHub Pages via the `pages` job in [`.github/workflows/build.yml`](../.github/workflows/build.yml).
 
-**[Play Galaga-assembly](https://danfour649.github.io/Galaga-assembly/galaga.html)**
+**[Play Galaga-assembly](https://danfour649.github.io/Galaga-assembly/)**
 
-The site root (`/Galaga-assembly/`) redirects to `galaga.html`. Pages must be enabled in the repository settings with **Source: GitHub Actions** (the first deploy configures this automatically on most repos).
+The site root (`/Galaga-assembly/`) serves the game directly (`index.html` is a copy of `galaga.html`, which still works for old links). Pages must be enabled in the repository settings with **Source: GitHub Actions** (the first deploy configures this automatically on most repos).
 
 ## Future assets
 
