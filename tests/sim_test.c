@@ -507,6 +507,61 @@ static int peak(const int16_t *b, int n)
     return m;
 }
 
+static void test_haptic_events(void)
+{
+    static GameState state;
+    static SoundWatch w;
+    int i, boss = -1;
+
+    synth_init(48000);
+    memset(&w, 0, sizeof(w));
+    game_init(&state);
+    state.phase = GAME_PHASE_PLAYING;
+    state.hud.demo = 0;
+    for (i = 0; i < MAX_ENEMIES; i++) {
+        state.enemies[i].active = false;
+    }
+    state.enemies[0].active = true;
+    state.enemies[0].type = ENEMY_TYPE_BOSS;
+    state.enemies[0].hp = 1;
+    boss = 0;
+    sound_watch_update(&w, &state);
+    expect_int("no haptic when idle", (int)w.haptic, 0);
+
+    /* Boss shot down: gone and the score went up */
+    state.enemies[boss].active = false;
+    state.player.score += SCORE_BOSS_FORMATION;
+    sound_watch_update(&w, &state);
+    expect_int("boss kill haptic", (int)(w.haptic & HAPTIC_BOSS_KILL) != 0, 1);
+
+    /* a Boss leaving without points (challenge fly-off) is not a kill */
+    state.enemies[boss].active = true;
+    sound_watch_update(&w, &state);
+    state.enemies[boss].active = false;
+    sound_watch_update(&w, &state);
+    expect_int("fly-off is no kill", (int)(w.haptic & HAPTIC_BOSS_KILL), 0);
+
+    /* fighter destroyed */
+    state.explosions[0].active = true;
+    state.explosions[0].kind = EXPLOSION_PLAYER;
+    state.explosions[0].timer = PLAYER_EXPLOSION_FRAMES;
+    sound_watch_update(&w, &state);
+    expect_int("player hit haptic", (int)(w.haptic & HAPTIC_PLAYER_HIT) != 0, 1);
+    sound_watch_update(&w, &state);
+    expect_int("haptic fires once", (int)w.haptic, 0);
+
+    /* captured */
+    state.capture.state = CAPT_PULL;
+    sound_watch_update(&w, &state);
+    expect_int("capture haptic", (int)(w.haptic & HAPTIC_CAPTURED) != 0, 1);
+
+    /* the attract demo never vibrates */
+    state.hud.demo = 1;
+    state.capture.state = CAPT_RESCUE;
+    sound_watch_update(&w, &state);
+    expect_int("demo is silent", (int)w.haptic, 0);
+}
+
 static void test_synth_and_sound_watch(void)
 {
     static GameState state;
@@ -724,6 +779,7 @@ int main(void)
     test_capture_and_dual();
     test_challenging_stage();
     test_synth_and_sound_watch();
+    test_haptic_events();
     test_shots_hits_and_results();
     test_attract_demo();
     test_save_progress();

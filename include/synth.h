@@ -23,6 +23,14 @@ int  synth_muted(void);
 void synth_render(int16_t *out, int frames);  /* mono, adds nothing when muted */
 int  synth_active_voices(void);
 
+/* Haptic events the watcher reports alongside sounds (web: Vibration API). */
+enum {
+    HAPTIC_PLAYER_HIT = 1u << 0,   /* fighter destroyed */
+    HAPTIC_CAPTURED   = 1u << 1,   /* fighter caught by the tractor beam */
+    HAPTIC_BOSS_KILL  = 1u << 2,   /* a Boss Galaga shot down */
+    HAPTIC_RESCUE     = 1u << 3    /* captured fighter rescued (dual ship) */
+};
+
 /* Watches GameState between frames and turns changes into sounds, so the
    simulation (asm and C) stays sound-free. */
 typedef struct {
@@ -34,7 +42,10 @@ typedef struct {
     int     expl_timer[MAX_EXPLOSIONS];
     uint8_t enemy_on[MAX_ENEMIES];
     int     enemy_hp[MAX_ENEMIES], enemy_state[MAX_ENEMIES];
+    uint8_t enemy_boss[MAX_ENEMIES];
+    int     score;
     uint32_t played;                     /* bitmask of SND_* fired last update */
+    uint32_t haptic;                     /* HAPTIC_* bits from last update */
 } SoundWatch;
 
 void sound_watch_update(SoundWatch *w, const GameState *s);

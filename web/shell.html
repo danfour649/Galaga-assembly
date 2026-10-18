@@ -51,6 +51,15 @@
             display: inline-flex; align-items: center; justify-content: center;
         }
         #fs[hidden] { display: none; }
+        #vibe {
+            width: 2.75rem; height: 2.75rem; border-radius: 50%;
+            border: 2px solid #3a3a58; background: #1a1a30; color: #c8d0e8;
+            padding: 0; cursor: pointer; touch-action: manipulation; font-size: 1.15rem;
+        }
+        #vibe[hidden] { display: none; }
+        #vibe[aria-pressed="false"] { color: #6a7290; text-decoration: line-through; }
+        /* drag on the playfield steers; the page handles all touch there */
+        #canvas { touch-action: none; }
         #fs svg { width: 1.2rem; height: 1.2rem; }
         /* phones held sideways: the playfield would be tiny, ask for portrait */
         #rotate {
@@ -120,6 +129,7 @@
     <header>
         <h1>Galaga-assembly</h1>
         <button id="mute" aria-label="Mute sound" aria-pressed="false" title="Sound on/off (M)">&#128266;</button>
+        <button id="vibe" aria-label="Vibration on" aria-pressed="true" title="Vibration on/off" hidden>&#128243;</button>
         <button id="fs" aria-label="Full screen" title="Full screen" hidden>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
         </button>
@@ -155,7 +165,7 @@
             var held = { left: 0, right: 0, fire: 0 };
             function push() {
                 if (Module._galaga_set_touch)
-                    Module._galaga_set_touch(held.left, held.right, held.fire);
+                    Module._galaga_set_touch(held.left, held.right, held.fire | tapFire);
             }
             /* Sound: the audio device is opened only inside a user gesture
                (mobile autoplay rules). Mute is remembered on this device. */
@@ -232,6 +242,64 @@
                     navigator.serviceWorker.register('sw.js').catch(function () {});
                 });
             }
+
+            /* Haptics: short vibrations on fighter hit, capture, rescue and
+               Boss kill. Off when sound is muted or with its own toggle.
+               iPhone Safari has no Vibration API: the button stays hidden. */
+            var vibeBtn = document.getElementById('vibe');
+            var canVibe = typeof navigator.vibrate === 'function';
+            var vibeOn = true;
+            try { vibeOn = localStorage.getItem('galaga-haptics') !== '0'; } catch (e) {}
+            function showVibe() {
+                vibeBtn.setAttribute('aria-pressed', vibeOn ? 'true' : 'false');
+                vibeBtn.setAttribute('aria-label', vibeOn ? 'Vibration on' : 'Vibration off');
+            }
+            if (canVibe && matchMedia('(pointer: coarse)').matches) {
+                vibeBtn.hidden = false;
+                showVibe();
+                vibeBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    vibeOn = !vibeOn;
+                    try { localStorage.setItem('galaga-haptics', vibeOn ? '1' : '0'); } catch (err) {}
+                    showVibe();
+                    if (vibeOn && !muted) navigator.vibrate(30);
+                    vibeBtn.blur(); canvas.focus();
+                });
+            }
+            Module.galagaHaptic = function (bits) {
+                if (!canVibe || !vibeOn || muted) return;
+                var p = (bits & 1) ? [70, 50, 140]          /* fighter hit */
+                      : (bits & 2) ? [30, 40, 30, 40, 30]   /* captured */
+                      : (bits & 8) ? [25, 30, 60]           /* rescued */
+                      : 45;                                 /* Boss down */
+                try { navigator.vibrate(p); } catch (e) {}
+            };
+
+            /* Drag-to-move: a finger on the playfield steers the fighter by
+               how far it slides (1:1 with the playfield); each new touch also
+               fires, so one thumb can steer while another taps. */
+            var tapFire = 0, tapTimer = 0, dragId = null, dragX0 = 0;
+            function drag(active, dx) { if (Module._galaga_set_drag) Module._galaga_set_drag(active, dx); }
+            canvas.addEventListener('pointerdown', function (e) {
+                if (e.pointerType === 'mouse') return;
+                e.preventDefault();
+                tapFire = 1; push();
+                clearTimeout(tapTimer);
+                tapTimer = setTimeout(function () { tapFire = 0; push(); }, 90);
+                if (dragId === null) {
+                    dragId = e.pointerId; dragX0 = e.clientX;
+                    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+                    drag(2, 0);
+                }
+            });
+            canvas.addEventListener('pointermove', function (e) {
+                if (e.pointerId !== dragId) return;
+                var w = canvas.getBoundingClientRect().width || 1;
+                drag(1, Math.round((e.clientX - dragX0) / w * 1000));
+            });
+            function dragEnd(e) { if (e.pointerId === dragId) { dragId = null; drag(0, 0); } }
+            canvas.addEventListener('pointerup', dragEnd);
+            canvas.addEventListener('pointercancel', dragEnd);
 
             document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
             document.addEventListener('dblclick', function (e) { e.preventDefault(); });

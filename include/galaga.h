@@ -299,6 +299,10 @@ void render_frame(const GameState *state);
 void audio_init(void);
 void audio_update(const GameState *state);
 void audio_set_mute(int mute);
+uint32_t audio_haptic_events(void);
+#ifdef __EMSCRIPTEN__
+void input_apply_drag(const GameState *s, bool *move_left, bool *move_right);
+#endif   /* HAPTIC_* bits (synth.h) last update */
 int  audio_muted(void);
 void audio_shutdown(void);
 
