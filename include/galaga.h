@@ -91,6 +91,33 @@ typedef struct {
     int  timer;
 } Explosion;
 
+/* Per-enemy flight data for src/flight.c. Lives at the END of GameState so
+   every offset the NASM modules use (include/galaga.inc) is unchanged. */
+typedef struct {
+    float fx, fy;        /* sub-pixel position */
+    float heading;       /* degrees, 0 = right, 90 = down (screen space) */
+    float speed;         /* px per 60 Hz sim step */
+    int   mode;          /* FLIGHT_* */
+    int   prog;          /* path program index */
+    int   seg;           /* current segment in the program */
+    int   seg_t;         /* steps spent in the current segment */
+    int   timer;         /* wait countdown / attack step counter */
+    int   col, row;      /* formation slot */
+    int   side;          /* +1 / -1 mirror for paths */
+    int   leader;        /* escort: index of the Boss it follows, else -1 */
+    float esc_dx, esc_dy;
+    int   escorts_lost;  /* Boss: escorts shot down during this dive */
+} Flight;
+
+typedef struct {
+    Flight   f[MAX_ENEMIES];
+    uint32_t rng;
+    int      t;            /* steps since the stage started */
+    int      dive_timer;
+    int      formed;       /* every wave has arrived */
+    int      breath_t;     /* breathing phase once formed */
+} FlightState;
+
 typedef struct {
     Player        player;
     Enemy         enemies[MAX_ENEMIES];
@@ -104,6 +131,7 @@ typedef struct {
     int           high_score;
     CollisionHits last_hits;
     Explosion     explosions[MAX_EXPLOSIONS];
+    FlightState   flight;   /* keep last: not mirrored in galaga.inc */
 } GameState;
 
 int  rect_overlap(const Rect *a, const Rect *b);
@@ -122,6 +150,12 @@ void player_try_fire(GameState *state);
 int  player_lose_life(GameState *state);
 
 void enemies_spawn_formation(GameState *state);
+
+/* Arcade-style flight (src/flight.c, portable C on every backend). */
+void flight_begin_stage(GameState *state);
+void flight_tick(GameState *state);
+void flight_on_hits(GameState *state);
+void flight_slot_pos(const GameState *state, int col, int row, float *x, float *y);
 void enemies_tick_all(GameState *state, int delta_px);
 
 void score_add_points(GameState *state, int points);
