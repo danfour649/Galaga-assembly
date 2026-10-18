@@ -16,6 +16,7 @@ typedef struct {
 } PalEntry;
 
 static SDL_Texture *g_player;
+static SDL_Texture *g_captive;   /* captured fighter: red hull */
 static SDL_Texture *g_bee[2];
 static SDL_Texture *g_butterfly[2];
 static SDL_Texture *g_boss[2];
@@ -78,6 +79,13 @@ static const char *const ART_PLAYER[16] = {
     ".W....WWWW....W.",
     "......W..W......",
     "................",
+};
+
+/* captured fighter: same art, hull and trim swapped to red/white */
+static const PalEntry PAL_CAPTIVE[] = {
+    { 'W', 230,  50,  50 },
+    { 'R', 240, 240, 240 },
+    { 'B',  80, 160, 255 },
 };
 
 /* --- bee (Zako): yellow wings, blue body --- */
@@ -260,6 +268,7 @@ void sprites_init(SDL_Renderer *renderer)
 {
     g_renderer = renderer;
     g_player       = tex_from_art(ART_PLAYER,      16, 16, PAL_PLAYER,    PAL_N(PAL_PLAYER));
+    g_captive      = tex_from_art(ART_PLAYER,      16, 16, PAL_CAPTIVE,   PAL_N(PAL_CAPTIVE));
     g_bee[0]       = tex_from_art(ART_BEE_A,       16, 16, PAL_BEE,       PAL_N(PAL_BEE));
     g_bee[1]       = tex_from_art(ART_BEE_B,       16, 16, PAL_BEE,       PAL_N(PAL_BEE));
     g_butterfly[0] = tex_from_art(ART_BUTTERFLY_A, 16, 16, PAL_BUTTERFLY, PAL_N(PAL_BUTTERFLY));
@@ -275,6 +284,8 @@ void sprites_init(SDL_Renderer *renderer)
 void sprites_shutdown(void)
 {
     SDL_DestroyTexture(g_player);
+    SDL_DestroyTexture(g_captive);
+    g_captive = NULL;
     for (int i = 0; i < 2; i++) {
         SDL_DestroyTexture(g_bee[i]);
         SDL_DestroyTexture(g_butterfly[i]);
@@ -288,6 +299,7 @@ void sprites_shutdown(void)
 }
 
 SDL_Texture *sprites_player(void) { return g_player; }
+SDL_Texture *sprites_captive(void) { return g_captive; }
 SDL_Texture *sprites_bullet(void) { return g_bullet; }
 SDL_Texture *sprites_enemy_bullet(void) { return g_ebullet; }
 
@@ -297,6 +309,7 @@ SDL_Texture *sprites_enemy(int type, int frame, int hp)
     switch (type) {
     case ENEMY_TYPE_BUTTERFLY: return g_butterfly[frame];
     case ENEMY_TYPE_BOSS:      return (hp <= 1) ? g_boss_hit[frame] : g_boss[frame];
+    case ENEMY_TYPE_CAPTIVE:   return g_captive;
     default:                   return g_bee[frame];
     }
 }

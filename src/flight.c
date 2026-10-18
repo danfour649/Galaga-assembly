@@ -32,6 +32,8 @@
 #define FLIGHT_DIVE_LOOP 5  /* half loop at the start of a dive */
 #define FLIGHT_ATTACK    6  /* diving at the player */
 #define FLIGHT_ESCORT    7  /* following a diving Boss */
+#define FLIGHT_BEAM_GO   8  /* Boss heading for its tractor-beam spot */
+#define FLIGHT_BEAM      9  /* Boss parked, beam handled by capture.c */
 
 #define PI_F 3.14159265f
 #define DEG(a) ((a) * (PI_F / 180.0f))
@@ -104,7 +106,8 @@ static void sync_enemy(Enemy *e, const Flight *f)
 
 static int is_diving_mode(int m)
 {
-    return m == FLIGHT_DIVE_LOOP || m == FLIGHT_ATTACK || m == FLIGHT_ESCORT;
+    return m == FLIGHT_DIVE_LOOP || m == FLIGHT_ATTACK || m == FLIGHT_ESCORT ||
+           m == FLIGHT_BEAM_GO || m == FLIGHT_BEAM;
 }
 
 /* Centre of a formation slot, including sway (arriving) or breathing (formed). */
@@ -232,9 +235,68 @@ static void start_dive(GameState *s, int idx)
     f->seg_t = 0;
     f->timer = 0;
     f->escorts_lost = 0;
+    f->beam = 0;
     /* loop outward, away from the centre (mirror for the right half) */
     f->side = (cx < RACK_CX) ? -1 : +1;
     e->state = ENEMY_STATE_DIVING;
+}
+
+void flight_start_beam_dive(GameState *s, int idx)
+{
+    float px = (float)(s->player.x + s->player.w / 2);
+    if (px < 24.0f) px = 24.0f;
+    if (px > 200.0f) px = 200.0f;
+    start_dive(s, idx);
+    s->flight.f[idx].beam = 1;
+    s->capture.beam_boss = idx;
+    s->capture.beam_t = -1;          /* not parked yet */
+    s->capture.beam_len = 0;
+    s->capture.beam_x = px;
+}
+
+/* capture.c tells a parked Boss its beam is over. */
+void flight_beam_done(GameState *s, int idx, int go_home)
+{
+    Flight *f = &s->flight.f[idx];
+    f->beam = 0;
+    if (go_home) {
+        f->mode = FLIGHT_SEEK;      /* carry the captive back to the rack */
+        f->speed = 2.0f;
+        f->heading = -90.0f;
+    } else {
+        f->mode = FLIGHT_ATTACK;    /* carry on down and off the screen */
+        f->heading = 90.0f;
+        f->timer = 40;
+    }
+}
+
+int flight_spawn_formed(GameState *s, int type, int col, int row, float x, float y)
+{
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        Enemy *e = &s->enemies[i];
+        Flight *f = &s->flight.f[i];
+        if (e->active)
+            continue;
+        memset(e, 0, sizeof(*e));
+        memset(f, 0, sizeof(*f));
+        e->active = true;
+        e->w = 14;
+        e->h = 14;
+        e->type = type;
+        e->hp = 1;
+        e->state = ENEMY_STATE_DIVING;   /* flying to its slot */
+        f->col = col;
+        f->row = row;
+        f->leader = -1;
+        f->fx = x;
+        f->fy = y;
+        f->speed = 2.0f;
+        f->heading = -90.0f;
+        f->mode = FLIGHT_SEEK;
+        sync_enemy(e, f);
+        return i;
+    }
+    return -1;
 }
 
 static void pick_divers(GameState *s)
@@ -259,6 +321,10 @@ static void pick_divers(GameState *s)
         Flight *f = &s->flight.f[idx];
         if (!e->active || f->mode != FLIGHT_FORMED)
             continue;
+        if (e->type == ENEMY_TYPE_BOSS && capture_can_beam(s) && (rnd(s) & 1)) {
+            flight_start_beam_dive(s, idx);
+            break;
+        }
         start_dive(s, idx);
         if (e->type == ENEMY_TYPE_BOSS) {
             int taken = 0;
@@ -370,10 +436,32 @@ static void tick_one(GameState *s, int idx)
         f->heading += 6.0f * (float)f->side;
         advance(f);
         if (++f->seg_t >= 30) {
-            f->mode = FLIGHT_ATTACK;
+            f->mode = f->beam ? FLIGHT_BEAM_GO : FLIGHT_ATTACK;
             f->timer = 0;
         }
         break;
+
+    case FLIGHT_BEAM_GO: {
+        float tx = s->capture.beam_x, ty = BEAM_Y;
+        float dx = tx - f->fx, dy = ty - f->fy;
+        float d = sqrtf(dx * dx + dy * dy);
+        if (d <= f->speed + 0.5f) {
+            f->fx = tx;
+            f->fy = ty;
+            f->mode = FLIGHT_BEAM;
+            s->capture.beam_t = 0;
+        } else if (d < 30.0f) {
+            f->heading = atan2f(dy, dx) * (180.0f / PI_F);
+            advance(f);
+        } else {
+            steer(f, tx, ty, 5.0f);
+            advance(f);
+        }
+        break;
+    }
+
+    case FLIGHT_BEAM:
+        break;       /* parked; capture.c runs the beam */
 
     case FLIGHT_ESCORT: {
         const Enemy *L = (f->leader >= 0) ? &s->enemies[f->leader] : NULL;

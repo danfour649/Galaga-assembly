@@ -31,6 +31,11 @@ static void maybe_save_high_score(GameState *state, int phase_before)
 static void hud_begin_stage(GameState *state, bool new_game)
 {
     Hud *h = &state->hud;
+    if (h->dead_timer > 0 || state->player.y > GALAGA_HEIGHT) {
+        /* died (or was captured) as the stage ended: back on the line */
+        state->player.x = GALAGA_WIDTH / 2 - state->player.w / 2;
+        state->player.y = GALAGA_HEIGHT - 36;
+    }
     h->dead_timer = 0;
     if (new_game) {
         h->banner = BANNER_PLAYER1;
@@ -61,16 +66,25 @@ static void handle_player_hits(GameState *state, int px, int py)
     const CollisionHits *hits = &state->last_hits;
     bool died = false;
     for (int i = 0; i < hits->count; i++) {
+        int hit_x = -1;
         if (hits->type[i] == HIT_ENEMY_BODY_PLAYER) {
             int ei = hits->enemy_idx[i];
             if (ei >= 0 && ei < MAX_ENEMIES) {
                 const Enemy *e = &state->enemies[ei];
                 effects_spawn_explosion(state, e->x + e->w / 2, e->y + e->h / 2);
+                hit_x = e->x + e->w / 2;
             }
-            died = true;
         } else if (hits->type[i] == HIT_ENEMY_BULLET_PLAYER) {
-            died = true;
+            int bi = hits->bullet_idx[i];
+            if (bi >= 0 && bi < MAX_BULLETS)
+                hit_x = state->bullets[bi].x + 1;
+        } else {
+            continue;
         }
+        /* dual fighter: lose one of the two ships, not a life */
+        if (!died && capture_player_hit(state, hit_x >= 0 ? hit_x : px))
+            continue;
+        died = true;
     }
     if (!died)
         return;
@@ -92,6 +106,7 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
        starts; replace it with the arcade rack and its fly-in waves. */
     if (phase_before != GAME_PHASE_PLAYING && state->phase == GAME_PHASE_PLAYING) {
         hud_begin_stage(state, phase_before == GAME_PHASE_TITLE);
+        capture_reset(state, phase_before == GAME_PHASE_TITLE);
         flight_begin_stage(state);
     }
 
@@ -111,13 +126,15 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
     } else {
         player_tick(state, 1, move_left ? 1 : 0, move_right ? 1 : 0);
         if (fire && hud->banner != BANNER_PLAYER1)
-            player_try_fire(state);
+            capture_fire(state);
     }
 
     int px = state->player.x, py = state->player.y;
     flight_tick(state);
+    capture_tick(state);
     entity_tick_all(state, 2);
     collision_resolve(state, &state->last_hits);
+    capture_on_hits(state);
     flight_on_hits(state);
     effects_process_hits(state);
     handle_player_hits(state, px, py);

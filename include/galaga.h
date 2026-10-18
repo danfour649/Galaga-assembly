@@ -20,6 +20,7 @@
 #define ENEMY_TYPE_BEE       0
 #define ENEMY_TYPE_BUTTERFLY 1
 #define ENEMY_TYPE_BOSS      2
+#define ENEMY_TYPE_CAPTIVE   3   /* captured fighter turned hostile (C only) */
 
 #define ENEMY_STATE_FORMATION 0
 #define ENEMY_STATE_DIVING    1
@@ -106,6 +107,31 @@ typedef struct {
 #define PLAYER_DEAD_STEPS    170   /* explosion + pause + READY */
 #define PLAYER_READY_STEPS   70    /* last part of the pause shows READY */
 
+#define CAPT_NONE    0
+#define CAPT_PULL    1   /* fighter being reeled up the beam */
+#define CAPT_HELD    2   /* captured fighter rides above its Boss */
+#define CAPT_RESCUE  3   /* freed fighter flying down to dock */
+
+#define BEAM_Y        150.0f  /* where a beaming Boss parks (centre y) */
+#define BEAM_MAX_LEN  112
+#define BEAM_EXTEND   48
+#define BEAM_HOLD     150
+#define BEAM_RETRACT  48
+
+/* Tractor beam, captured fighter and dual fighter (src/capture.c). */
+typedef struct {
+    int   beam_boss;     /* enemy index beaming, or -1 */
+    int   beam_t;        /* steps since the beam started */
+    int   beam_len;      /* current beam length in px */
+    float beam_x;        /* where the Boss parks */
+    int   state;         /* CAPT_* */
+    int   boss;          /* Boss holding the captive */
+    float cx, cy;        /* captive centre */
+    int   spin;
+    int   msg_timer;     /* FIGHTER CAPTURED */
+    int   dual;          /* two fighters side by side */
+} Capture;
+
 /* Presentation state owned by game.c (C on every backend). */
 typedef struct {
     uint32_t ticks;        /* sim steps in every phase (blink, starfield) */
@@ -130,6 +156,7 @@ typedef struct {
     int   leader;        /* escort: index of the Boss it follows, else -1 */
     float esc_dx, esc_dy;
     int   escorts_lost;  /* Boss: escorts shot down during this dive */
+    int   beam;          /* Boss: this dive ends in a tractor beam */
 } Flight;
 
 typedef struct {
@@ -156,6 +183,7 @@ typedef struct {
     Explosion     explosions[MAX_EXPLOSIONS];
     FlightState   flight;   /* C-only from here: not mirrored in galaga.inc */
     Hud           hud;
+    Capture       capture;
 } GameState;
 
 int  rect_overlap(const Rect *a, const Rect *b);
@@ -179,6 +207,17 @@ void enemies_spawn_formation(GameState *state);
 void flight_begin_stage(GameState *state);
 void flight_tick(GameState *state);
 void flight_on_hits(GameState *state);
+void flight_start_beam_dive(GameState *state, int boss);
+int  flight_spawn_formed(GameState *state, int type, int col, int row, float x, float y);
+void flight_beam_done(GameState *state, int boss, int go_home);
+
+/* Tractor beam / capture / dual fighter (src/capture.c). */
+void capture_reset(GameState *state, bool new_game);
+int  capture_can_beam(const GameState *state);
+void capture_tick(GameState *state);
+void capture_on_hits(GameState *state);
+int  capture_player_hit(GameState *state, int hit_x);
+void capture_fire(GameState *state);
 void flight_slot_pos(const GameState *state, int col, int row, float *x, float *y);
 void enemies_tick_all(GameState *state, int delta_px);
 
@@ -206,6 +245,7 @@ struct SDL_Texture;
 void sprites_init(struct SDL_Renderer *renderer);
 void sprites_shutdown(void);
 struct SDL_Texture *sprites_player(void);
+struct SDL_Texture *sprites_captive(void);
 struct SDL_Texture *sprites_bullet(void);
 struct SDL_Texture *sprites_enemy_bullet(void);
 struct SDL_Texture *sprites_enemy(int type, int frame, int hp);

@@ -43,6 +43,7 @@ set(GALAGA_C_SOURCES
     src/render.c
     src/game.c
     src/flight.c
+    src/capture.c
     src/sprites.c
     src/effects.c
     src/highscore.c
@@ -113,6 +114,7 @@ if(NOT GALAGA_IS_EMSCRIPTEN)
             tests/sim_test.c
             src/game.c
             src/flight.c
+            src/capture.c
             src/effects.c
             src/highscore.c
         )
