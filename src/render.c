@@ -190,6 +190,36 @@ static void draw_stage_badges(int stage)
     }
 }
 
+/* Tractor beam: stacked stripes widening downward, colours cycling. */
+static void draw_beam(const GameState *state)
+{
+    const Capture *c = &state->capture;
+    if (c->beam_boss < 0 || c->beam_len <= 0)
+        return;
+    const Enemy *b = &state->enemies[c->beam_boss];
+    int cx = b->x + 7;
+    int top = b->y + 15;
+    static const Uint8 COL[3][3] = { { 80, 230, 255 }, { 40, 110, 255 }, { 210, 220, 255 } };
+    for (int d = 0; d < c->beam_len; d += 3) {
+        int half = 8 + (d * 22) / 100;
+        int k = ((d / 3) + (int)(state->hud.ticks / 3)) % 3;
+        /* ragged edges like the arcade beam */
+        int jag = ((d / 3) & 1) ? 2 : 0;
+        draw_rect(cx - half + jag, top + d, half * 2 - jag * 2, 2, COL[k][0], COL[k][1], COL[k][2]);
+    }
+}
+
+static void draw_captive(const GameState *state)
+{
+    const Capture *c = &state->capture;
+    if (c->state == CAPT_NONE)
+        return;
+    SDL_Rect dst = { (int)c->cx - 8, (int)c->cy - 8, 16, 16 };
+    double angle = (c->state == CAPT_HELD) ? 180.0 : (double)((c->spin * 18) % 360);
+    SDL_RenderCopyEx(renderer, c->state == CAPT_RESCUE ? sprites_player() : sprites_captive(),
+                     NULL, &dst, angle, NULL, SDL_FLIP_NONE);
+}
+
 static void draw_hud(const GameState *state)
 {
     char buf[32];
@@ -308,12 +338,19 @@ void render_frame(const GameState *state)
 
     draw_starfield(state->frame, state->player.stage);
 
+    draw_beam(state);
+
     int anim = (int)(state->frame >> 3) & 1;
     for (int i = 0; i < MAX_ENEMIES; i++) {
         const Enemy *e = &state->enemies[i];
         if (!e->active)
             continue;
         /* art is 16x16 around a 14x14 hitbox; draw centered on the box */
+        if (e->type == ENEMY_TYPE_CAPTIVE) {
+            SDL_Rect dst = { e->x - 1, e->y - 1, 16, 16 };
+            SDL_RenderCopyEx(renderer, sprites_captive(), NULL, &dst, 0.0, NULL, SDL_FLIP_VERTICAL);
+            continue;
+        }
         draw_sprite(sprites_enemy(e->type, anim, e->hp),
                     e->x - 1, e->y - 1, 16, 16);
     }
@@ -330,12 +367,12 @@ void render_frame(const GameState *state)
 
     if (state->phase != GAME_PHASE_TITLE && state->phase != GAME_PHASE_GAME_OVER &&
         state->hud.dead_timer == 0) {
-        draw_sprite(
-            sprites_player(),
-            state->player.x, state->player.y,
-            state->player.w, state->player.h
-        );
+        draw_sprite(sprites_player(), state->player.x, state->player.y, 16, state->player.h);
+        if (state->capture.dual)
+            draw_sprite(sprites_player(), state->player.x + 16, state->player.y, 16, state->player.h);
     }
+
+    draw_captive(state);
 
     for (int i = 0; i < MAX_EXPLOSIONS; i++) {
         if (state->explosions[i].active)
@@ -356,6 +393,8 @@ void render_frame(const GameState *state)
         } else if (state->hud.banner == BANNER_STAGE) {
             snprintf(banner, sizeof(banner), "STAGE %d", state->player.stage);
             draw_text_centered(banner, 140, 2, 90, 230, 255);
+        } else if (state->capture.msg_timer > 0) {
+            draw_text_centered("FIGHTER CAPTURED", 140, 1, 255, 40, 40);
         } else if (state->hud.dead_timer > 0 && state->hud.dead_timer <= PLAYER_READY_STEPS) {
             draw_text_centered("READY", 140, 2, 90, 230, 255);
         }

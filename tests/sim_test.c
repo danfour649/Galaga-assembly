@@ -354,6 +354,73 @@ static void test_extra_lives_and_respawn(void)
     expect_int("respawn timer", state.hud.dead_timer, 0);
 }
 
+static void test_capture_and_dual(void)
+{
+    static GameState s;
+    int i, b, lives, t;
+
+    game_init(&s);
+    game_tick(&s, 1.0f / 60.0f, false, false, true);
+    for (i = 0; i < BANNER_PLAYER1_STEPS + BANNER_STAGE_STEPS + 2; i++)
+        game_tick(&s, 1.0f / 60.0f, false, false, false);
+    for (i = 0; i < MAX_ENEMIES; i++)
+        s.enemies[i].active = false;
+    b = flight_spawn_formed(&s, ENEMY_TYPE_BOSS, 4, 0, 112.0f, 40.0f);
+    expect_int("capture boss", b >= 0, 1);
+    s.flight.dive_timer = 1000000;
+    for (i = 0; i < 120; i++)
+        game_tick(&s, 1.0f / 60.0f, false, false, false);
+
+    lives = s.player.lives;
+    flight_start_beam_dive(&s, b);
+    expect_int("beam boss", s.capture.beam_boss, b);
+    for (t = 0; t < 900 && s.capture.state != CAPT_HELD; t++) {
+        s.flight.dive_timer = 1000000;
+        game_tick(&s, 1.0f / 60.0f, false, false, false);
+    }
+    expect_int("captured", s.capture.state, CAPT_HELD);
+    expect_int("capture costs life", s.player.lives, lives - 1);
+    expect_int("beam over", s.capture.beam_boss, -1);
+
+    /* shoot the Boss on its way home (still DIVING): captive is freed */
+    for (t = 0; t < 40; t++)
+        game_tick(&s, 1.0f / 60.0f, false, false, false);
+    expect_int("boss returning", s.enemies[b].state, ENEMY_STATE_DIVING);
+    s.enemies[b].hp = 1;
+    i = entity_spawn(&s, ENTITY_KIND_BULLET, 1, s.enemies[b].x + 5, s.enemies[b].y + 4);
+    expect_int("rescue shot", i >= 0, 1);
+    game_tick(&s, 1.0f / 60.0f, false, false, false);
+    expect_int("boss down", s.enemies[b].active, 0);
+    expect_int("rescue", s.capture.state, CAPT_RESCUE);
+    for (t = 0; t < 900 && !s.capture.dual; t++)
+        game_tick(&s, 1.0f / 60.0f, false, false, false);
+    expect_int("dual fighter", s.capture.dual, 1);
+    expect_int("dual width", s.player.w, 32);
+
+    /* dual fires a pair */
+    for (i = 0; i < MAX_BULLETS; i++)
+        s.bullets[i].active = false;
+    capture_fire(&s);
+    t = 0;
+    for (i = 0; i < MAX_BULLETS; i++)
+        t += s.bullets[i].active && s.bullets[i].from_player;
+    expect_int("dual pair", t, 2);
+
+    /* a hit on the left ship costs that ship, not a life */
+    lives = s.player.lives;
+    {
+        int x0 = s.player.x;
+        for (i = 0; i < MAX_BULLETS; i++)
+            s.bullets[i].active = false;
+        entity_spawn(&s, ENTITY_KIND_BULLET, 0, s.player.x + 2, s.player.y + 2);
+        game_tick(&s, 1.0f / 60.0f, false, false, false);
+        expect_int("dual hit keeps life", s.player.lives, lives);
+        expect_int("dual hit single", s.capture.dual, 0);
+        expect_int("dual hit width", s.player.w, 16);
+        expect_int("right ship remains", s.player.x, x0 + 16);
+    }
+}
+
 int main(void)
 {
     test_overlap();
@@ -364,6 +431,7 @@ int main(void)
     test_high_score_and_step();
     test_flight();
     test_extra_lives_and_respawn();
+    test_capture_and_dual();
     if (failures) {
         fprintf(stderr, "%d failure(s)\n", failures);
         return 1;
