@@ -157,7 +157,15 @@ typedef struct {
     int      banner;       /* BANNER_* */
     int      banner_timer;
     int      dead_timer;   /* >0 while the fighter is exploded / respawning */
+    int      shots;        /* player shots fired this game (results screen) */
+    int      hits;         /* player shots that hit an enemy this game */
+    int      over_t;       /* steps since GAME OVER */
 } Hud;
+
+/* After GAME OVER: the banner, then -RESULTS-, then back to the title. */
+#define GAMEOVER_RESULTS_AT 150
+#define GAMEOVER_FIRE_LOCK  210   /* fire is ignored until results are up */
+#define GAMEOVER_TITLE_AT   690
 
 /* Per-enemy flight data for src/flight.c. Lives at the END of GameState so
    every offset the NASM modules use (include/galaga.inc) is unchanged. */
