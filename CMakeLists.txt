@@ -76,6 +76,15 @@ if(GALAGA_IS_EMSCRIPTEN)
         -sEXPORTED_RUNTIME_METHODS=ccall
         --shell-file "${CMAKE_SOURCE_DIR}/web/shell.html"
     )
+    # PWA files next to galaga.html (manifest, service worker, icons)
+    add_custom_command(TARGET galaga POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_SOURCE_DIR}/web/manifest.webmanifest
+                ${CMAKE_SOURCE_DIR}/web/sw.js
+                $<TARGET_FILE_DIR:galaga>
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                ${CMAKE_SOURCE_DIR}/web/icons $<TARGET_FILE_DIR:galaga>/icons
+    )
 elseif(WIN32 AND TARGET SDL2::SDL2main)
     target_link_libraries(galaga PRIVATE SDL2::SDL2main)
 endif()
