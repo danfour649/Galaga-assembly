@@ -684,6 +684,33 @@ static void test_attract_demo(void)
     remove(HIGH_SCORE_FILE);
 }
 
+static void test_save_progress(void)
+{
+    static GameState state, loaded;
+
+    remove(HIGH_SCORE_FILE);
+    game_init(&state);
+    state.high_score = 100;
+    game_tick(&state, 1.0f / 60.0f, false, false, true);   /* start */
+    state.player.score = 90;
+    game_save_progress(&state);
+    memset(&loaded, 0, sizeof(loaded));
+    high_score_load(&loaded);
+    expect_int("lower score not saved", loaded.high_score, 0);
+    state.player.score = 4321;
+    game_save_progress(&state);
+    high_score_load(&loaded);
+    expect_int("mid-game best saved", loaded.high_score, 4321);
+    expect_int("mid-game best shown", state.high_score, 4321);
+    /* the demo never saves */
+    state.hud.demo = 1;
+    state.player.score = 9999;
+    game_save_progress(&state);
+    high_score_load(&loaded);
+    expect_int("demo not saved", loaded.high_score, 4321);
+    remove(HIGH_SCORE_FILE);
+}
+
 int main(void)
 {
     test_overlap();
@@ -699,6 +726,7 @@ int main(void)
     test_synth_and_sound_watch();
     test_shots_hits_and_results();
     test_attract_demo();
+    test_save_progress();
     if (failures) {
         fprintf(stderr, "%d failure(s)\n", failures);
         return 1;

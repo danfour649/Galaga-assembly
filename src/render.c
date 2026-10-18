@@ -274,7 +274,11 @@ static void draw_hud(const GameState *state)
     draw_text_right(buf, 56, 9, 255, 255, 255);
 
     draw_text_centered("HIGH SCORE", 1, 1, 255, 40, 40);
-    format_score(buf, sizeof(buf), state->high_score);
+    /* the high score climbs with yours, as on the arcade (not in the demo) */
+    int high = state->high_score;
+    if (!state->hud.demo && state->phase != GAME_PHASE_TITLE && state->player.score > high)
+        high = state->player.score;
+    format_score(buf, sizeof(buf), high);
     draw_text_right(buf, 136, 9, 255, 255, 255);
 
     if (title) {
@@ -566,9 +570,11 @@ void render_frame(const GameState *state)
     draw_hud(state);
 
     if (state->hud.demo) {
-        draw_text_centered("DEMO", 18, 1, 90, 230, 255);
-        if (!((state->hud.ticks >> 5) & 1))
+        /* bottom line, clear of the rack and of a captive held above a Boss */
+        if ((state->hud.ticks >> 6) & 1)
             draw_text_centered("PRESS FIRE", GALAGA_HEIGHT - 9, 1, 255, 255, 255);
+        else
+            draw_text_centered("DEMO", GALAGA_HEIGHT - 9, 1, 90, 230, 255);
     }
 
     if (state->phase == GAME_PHASE_TITLE) {

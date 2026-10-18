@@ -321,6 +321,18 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
     demo_check_end(state);
 }
 
+/* Keep a new best score even if the game is closed mid-game (tab hidden,
+   page closed, window quit). Demo scores never count. */
+void game_save_progress(GameState *state)
+{
+    if (state->hud.demo || state->phase == GAME_PHASE_TITLE)
+        return;
+    if (state->player.score > state->high_score) {
+        high_score_save(state);
+        state->high_score = state->player.score;
+    }
+}
+
 void game_tick(GameState *state, float dt, bool move_left, bool move_right, bool fire)
 {
     const float step = 1.0f / 60.0f;

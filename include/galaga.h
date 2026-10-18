@@ -276,6 +276,7 @@ void effects_tick(GameState *gs);
 
 void high_score_load(GameState *state);
 void high_score_save(const GameState *state);
+void game_save_progress(GameState *state);
 
 void game_init(GameState *state);
 void game_tick(GameState *state, float dt, bool move_left, bool move_right, bool fire);

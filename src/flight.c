@@ -40,7 +40,7 @@
 #define DEG(a) ((a) * (PI_F / 180.0f))
 
 #define RACK_CX      112.0f
-#define RACK_TOP     34.0f
+#define RACK_TOP     40.0f   /* low enough that a held captive clears the HUD */
 #define COL_GAP      16.0f
 #define ROW_GAP      16.0f
 #define HALF         7.0f      /* enemy hitbox is 14x14 */
