@@ -127,6 +127,9 @@ jobs:
             build-web/galaga.html
             build-web/galaga.js
             build-web/galaga.wasm
+            build-web/manifest.webmanifest
+            build-web/sw.js
+            build-web/icons/
           if-no-files-found: error
 
   pages:

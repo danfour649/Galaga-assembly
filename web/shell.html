@@ -4,6 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Galaga-assembly</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0a0a18">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Galaga">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -36,6 +44,23 @@
             touch-action: manipulation;
         }
         #mute[aria-pressed="true"] { color: #6a7290; }
+        #fs {
+            width: 2.75rem; height: 2.75rem; border-radius: 50%;
+            border: 2px solid #3a3a58; background: #1a1a30; color: #c8d0e8;
+            padding: 0; cursor: pointer; touch-action: manipulation;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        #fs[hidden] { display: none; }
+        #fs svg { width: 1.2rem; height: 1.2rem; }
+        /* phones held sideways: the playfield would be tiny, ask for portrait */
+        #rotate {
+            display: none; position: fixed; inset: 0; z-index: 10;
+            background: #0a0a18; color: #c8d0e8; font-size: 1.1rem;
+            align-items: center; justify-content: center; text-align: center; padding: 2rem;
+        }
+        @media (orientation: landscape) and (pointer: coarse) and (max-height: 500px) {
+            #rotate { display: flex; }
+        }
         h1 {
             margin: 0;
             font-size: 1.25rem;
@@ -95,6 +120,9 @@
     <header>
         <h1>Galaga-assembly</h1>
         <button id="mute" aria-label="Mute sound" aria-pressed="false" title="Sound on/off (M)">&#128266;</button>
+        <button id="fs" aria-label="Full screen" title="Full screen" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+        </button>
     </header>
     <div id="frame"><canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas></div>
     <div id="touch">
@@ -103,6 +131,7 @@
         <button data-k="right" aria-label="Right">&#9654;</button>
     </div>
     <div id="status">Loading…</div>
+    <div id="rotate">Turn your phone upright to play</div>
     <p class="help">
         Click the game to focus, then use <kbd>←</kbd><kbd>→</kbd> or <kbd>A</kbd><kbd>D</kbd> to move,
         <kbd>Space</kbd> to fire, <kbd>M</kbd> to mute.<br>
@@ -163,6 +192,47 @@
                 if (document.visibilityState === 'hidden') saveProgress();
             });
             window.addEventListener('pagehide', saveProgress);
+
+            /* Full screen + portrait lock (best effort; hidden where the
+               Fullscreen API is missing, e.g. iPhone Safari). */
+            var fsBtn = document.getElementById('fs');
+            var root = document.documentElement;
+            var reqFs = root.requestFullscreen || root.webkitRequestFullscreen;
+            var exitFs = document.exitFullscreen || document.webkitExitFullscreen;
+            function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement; }
+            function lockPortrait() {
+                try {
+                    if (screen.orientation && screen.orientation.lock)
+                        screen.orientation.lock('portrait').catch(function () {});
+                } catch (e) {}
+            }
+            if (reqFs && (document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
+                fsBtn.hidden = false;
+                fsBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (fsElement()) {
+                        exitFs.call(document);
+                    } else {
+                        var p = reqFs.call(root, { navigationUI: 'hide' });
+                        if (p && p.then) p.then(lockPortrait, function () {}); else lockPortrait();
+                    }
+                    fsBtn.blur(); canvas.focus();
+                });
+                document.addEventListener('fullscreenchange', function () {
+                    fsBtn.setAttribute('aria-label', fsElement() ? 'Exit full screen' : 'Full screen');
+                });
+            }
+            /* installed (fullscreen/standalone display): lock too */
+            if (matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) lockPortrait();
+
+            /* offline / installable */
+            if ('serviceWorker' in navigator &&
+                (location.protocol === 'https:' || location.hostname === 'localhost')) {
+                window.addEventListener('load', function () {
+                    navigator.serviceWorker.register('sw.js').catch(function () {});
+                });
+            }
+
             document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
             document.addEventListener('dblclick', function (e) { e.preventDefault(); });
             document.querySelectorAll('#touch button').forEach(function (b) {
