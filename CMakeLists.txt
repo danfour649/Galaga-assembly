@@ -42,6 +42,7 @@ set(GALAGA_C_SOURCES
     src/input.c
     src/render.c
     src/game.c
+    src/flight.c
     src/sprites.c
     src/effects.c
     src/highscore.c
@@ -111,6 +112,7 @@ if(NOT GALAGA_IS_EMSCRIPTEN)
         add_executable(${target}
             tests/sim_test.c
             src/game.c
+            src/flight.c
             src/effects.c
             src/highscore.c
         )

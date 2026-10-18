@@ -74,6 +74,7 @@ Goal: one screen, shoot enemies, score, lives, game over.
 
 ### 2.2 Entry animation ✅
 - [x] Enemies drop into formation slots (`ENEMY_STATE_ENTERING` in `asm/enemies.asm`)
+- [x] Arcade flight (`src/flight.c`, all backends): 4/16/20 rack, five curved fly-in waves, sway then breathing, looping dives, Boss escorts (800/1600 bonus), divers re-enter from the top. The game loop uses this instead of `enemies_tick_all` / `enemies_spawn_formation`; those asm/C routines are still built and unit-tested.
 
 ### 2.3 Accurate scoring ✅
 | Target | Points |

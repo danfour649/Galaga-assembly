@@ -1,6 +1,7 @@
 #include "galaga.h"
 
 #include <string.h>
+#include <time.h>
 
 /* One sim step is the old 60 Hz truncation: player 1 px, world 2 px. */
 static float sim_accum;
@@ -10,6 +11,7 @@ void game_init(GameState *state)
     memset(state, 0, sizeof(*state));
     state->running = true;
     sim_accum = 0.0f;
+    state->flight.rng = (uint32_t)time(NULL) * 2654435761u | 1u;
     high_score_load(state);
     game_state_init(state);
     player_init(state);
@@ -31,6 +33,11 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
     int phase_before = state->phase;
     game_state_tick(state, fire ? 1 : 0);
 
+    /* game_state_tick (asm or C) spawns the old 5x8 grid when a stage
+       starts; replace it with the arcade rack and its fly-in waves. */
+    if (phase_before != GAME_PHASE_PLAYING && state->phase == GAME_PHASE_PLAYING)
+        flight_begin_stage(state);
+
     if (!game_state_is_playing(state)) {
         effects_tick(state);
         maybe_save_high_score(state, phase_before);
@@ -42,9 +49,10 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
     if (fire)
         player_try_fire(state);
 
-    enemies_tick_all(state, 2);
+    flight_tick(state);
     entity_tick_all(state, 2);
     collision_resolve(state, &state->last_hits);
+    flight_on_hits(state);
     effects_process_hits(state);
     effects_tick(state);
 

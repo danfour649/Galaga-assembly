@@ -239,6 +239,77 @@ static void test_high_score_and_step(void)
     remove(HIGH_SCORE_FILE);
 }
 
+static void test_flight(void)
+{
+    static GameState state;
+    int counts[3] = {0, 0, 0};
+    int i, t, formed_at = -1, dive_seen = 0, top_entry = 0, bottom_entry = 0;
+
+    game_init(&state);
+    state.flight.rng = 12345;
+    game_tick(&state, 1.0f / 60.0f, false, false, true);   /* start */
+    expect_int("flight playing", state.phase, GAME_PHASE_PLAYING);
+    for (i = 0; i < MAX_ENEMIES; i++) {
+        if (state.enemies[i].active)
+            counts[state.enemies[i].type]++;
+    }
+    expect_int("rack bees", counts[ENEMY_TYPE_BEE], 20);
+    expect_int("rack butterflies", counts[ENEMY_TYPE_BUTTERFLY], 16);
+    expect_int("rack bosses", counts[ENEMY_TYPE_BOSS], 4);
+    expect_int("waiting off screen", state.enemies[0].y < 0, 1);
+
+    for (t = 0; t < 1800 && formed_at < 0; t++) {
+        state.player.lives = 9;
+        state.player.x = 0;   /* park the ship away from the paths */
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+        for (i = 0; i < MAX_ENEMIES; i++) {
+            if (state.enemies[i].y > 150 && state.enemies[i].y < 240 && state.enemies[i].x > 0)
+                bottom_entry = 1;
+            if (state.enemies[i].y > -16 && state.enemies[i].y < 10)
+                top_entry = 1;
+        }
+        if (state.flight.formed)
+            formed_at = t;
+    }
+    expect_int("rack formed", formed_at > 0, 1);
+    expect_int("entry from top", top_entry, 1);
+    expect_int("entry from bottom", bottom_entry, 1);
+    for (i = 0; i < MAX_ENEMIES; i++) {
+        if (!state.enemies[i].active)
+            continue;
+        if (state.enemies[i].state != ENEMY_STATE_FORMATION) {
+            expect_int("all in formation", state.enemies[i].state, ENEMY_STATE_FORMATION);
+            break;
+        }
+    }
+    expect_int("no dive before formed", dive_seen, 0);
+    for (t = 0; t < 600 && !dive_seen; t++) {
+        state.player.lives = 9;
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+        for (i = 0; i < MAX_ENEMIES; i++)
+            if (state.enemies[i].active && state.enemies[i].state == ENEMY_STATE_DIVING)
+                dive_seen = 1;
+    }
+    expect_int("dive after formed", dive_seen, 1);
+
+    /* escort bonus: diving Boss shot after both escorts = 1600 total */
+    memset(&state, 0, sizeof(state));
+    player_init(&state);
+    game_state_init(&state);
+    state.enemies[0].active = true;
+    state.enemies[0].type = ENEMY_TYPE_BOSS;
+    state.enemies[0].state = ENEMY_STATE_DIVING;
+    state.flight.f[0].mode = 6;            /* FLIGHT_ATTACK */
+    state.flight.f[0].escorts_lost = 2;
+    state.last_hits.count = 1;
+    state.last_hits.type[0] = HIT_PLAYER_BULLET_ENEMY;
+    state.last_hits.enemy_idx[0] = 0;
+    state.enemies[0].active = false;       /* collision already killed it */
+    state.player.score = SCORE_BOSS_DIVING;
+    flight_on_hits(&state);
+    expect_int("escort bonus", state.player.score, 1600);
+}
+
 int main(void)
 {
     test_overlap();
@@ -247,6 +318,7 @@ int main(void)
     test_player_hits();
     test_entry_dive_and_stage();
     test_high_score_and_step();
+    test_flight();
     if (failures) {
         fprintf(stderr, "%d failure(s)\n", failures);
         return 1;
