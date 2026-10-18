@@ -16,7 +16,7 @@ The Windows download is a `.zip` containing `galaga.exe` and its required `SDL2.
 
 Every successful build of `main` deploys the WebAssembly version to GitHub Pages:
 
-**[Play Galaga-assembly online](https://danfour649.github.io/Galaga-assembly/galaga.html)**
+**[Play Galaga-assembly online](https://danfour649.github.io/Galaga-assembly/)**
 
 Click the game canvas to focus, then press Space to start. No download required.
 
@@ -72,7 +72,7 @@ Full details: [docs/WEB.md](docs/WEB.md).
 
 ### CI builds
 
-Every push/PR to `main` runs [GitHub Actions](.github/workflows/build.yml) on **Linux, macOS, Windows, Linux C fallback, and WebAssembly**. Native executables are uploaded as workflow artifacts and, on a clean build of `main`, published to the [latest release](https://github.com/danfour649/Galaga-assembly/releases/tag/latest). The WASM build is available as the `galaga-wasm` artifact (`galaga.html`, `.js`, `.wasm`) and is deployed to [GitHub Pages](https://danfour649.github.io/Galaga-assembly/galaga.html) after each successful `main` build.
+Every push/PR to `main` runs [GitHub Actions](.github/workflows/build.yml) on **Linux, macOS, Windows, Linux C fallback, and WebAssembly**. Native executables are uploaded as workflow artifacts and, on a clean build of `main`, published to the [latest release](https://github.com/danfour649/Galaga-assembly/releases/tag/latest). The WASM build is available as the `galaga-wasm` artifact (`galaga.html`, `.js`, `.wasm`) and is deployed to [GitHub Pages](https://danfour649.github.io/Galaga-assembly/) after each successful `main` build.
 
 ### Controls
 
