@@ -622,6 +622,68 @@ static void test_shots_hits_and_results(void)
     expect_int("new game resets hits", state.hud.hits, 0);
 }
 
+static void test_attract_demo(void)
+{
+    static GameState state;
+    static SoundWatch w;
+    int i, sounds = 0, max_score = 0, demo_steps = 0;
+
+    remove(HIGH_SCORE_FILE);
+    game_init(&state);
+    state.flight.rng = 2024;
+    state.high_score = 10;            /* any demo score would beat this */
+    synth_init(48000);
+    memset(&w, 0, sizeof(w));
+    for (i = 0; i < DEMO_AFTER_STEPS - 1; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("still on the title", state.hud.demo, 0);
+    game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("demo started", state.hud.demo, 1);
+    expect_int("demo is playing", state.phase, GAME_PHASE_PLAYING);
+    expect_int("demo skips PLAYER 1", state.hud.banner == BANNER_PLAYER1, 0);
+    while (state.hud.demo && demo_steps < DEMO_STEPS + 10) {
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+        sound_watch_update(&w, &state);
+        sounds |= (int)w.played;
+        if (state.player.score > max_score)
+            max_score = state.player.score;
+        demo_steps++;
+    }
+    expect_int("demo scored", max_score > 10, 1);
+    expect_int("demo ends in time", demo_steps <= DEMO_STEPS, 1);
+    expect_int("demo is silent", sounds, 0);
+    expect_int("back on the title", state.phase, GAME_PHASE_TITLE);
+    expect_int("high score untouched", state.high_score, 10);
+    {
+        FILE *f = fopen(HIGH_SCORE_FILE, "rb");
+        expect_int("no high score file", f == NULL, 1);
+        if (f) fclose(f);
+    }
+    expect_int("field cleared", entity_any_active(&state, ENTITY_KIND_ENEMY), 0);
+
+    /* a key during the demo returns to the title */
+    for (i = 0; i < DEMO_AFTER_STEPS + 300; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("second demo", state.hud.demo, 1);
+    game_tick(&state, 1.0f / 60.0f, true, false, false);
+    expect_int("left ends demo", state.hud.demo, 0);
+    expect_int("left -> title", state.phase, GAME_PHASE_TITLE);
+    expect_int("title restarts at page 1", state.hud.title_t < 5, 1);
+
+    /* fire during the demo starts a real game */
+    for (i = 0; i < DEMO_AFTER_STEPS + 300; i++)
+        game_tick(&state, 1.0f / 60.0f, false, false, false);
+    expect_int("third demo", state.hud.demo, 1);
+    game_tick(&state, 1.0f / 60.0f, false, false, true);
+    expect_int("fire ends demo", state.hud.demo, 0);
+    expect_int("real game", state.phase, GAME_PHASE_PLAYING);
+    expect_int("real game banner", state.hud.banner, BANNER_PLAYER1);
+    expect_int("real game score", state.player.score, 0);
+    expect_int("real game lives", state.player.lives, 3);
+    expect_int("high score still", state.high_score, 10);
+    remove(HIGH_SCORE_FILE);
+}
+
 int main(void)
 {
     test_overlap();
@@ -636,6 +698,7 @@ int main(void)
     test_challenging_stage();
     test_synth_and_sound_watch();
     test_shots_hits_and_results();
+    test_attract_demo();
     if (failures) {
         fprintf(stderr, "%d failure(s)\n", failures);
         return 1;

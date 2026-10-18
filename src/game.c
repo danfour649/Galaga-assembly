@@ -1,5 +1,6 @@
 #include "galaga.h"
 
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -19,6 +20,8 @@ void game_init(GameState *state)
 
 static void maybe_save_high_score(GameState *state, int phase_before)
 {
+    if (state->hud.demo)
+        return;                       /* demo scores are never kept */
     if (phase_before != GAME_PHASE_PLAYING || state->phase != GAME_PHASE_GAME_OVER)
         return;
     /* Save while player.score is still greater than the stored high score.
@@ -119,10 +122,119 @@ static void handle_player_hits(GameState *state, int px, int py)
     state->player.y = GALAGA_HEIGHT + 1000;   /* out of every hitbox */
 }
 
+/* --- attract-mode demo ---------------------------------------------------- */
+
+static void demo_start(GameState *state)
+{
+    Hud *hud = &state->hud;
+    hud->demo = 1;
+    hud->demo_t = 0;
+    hud->demo_beamed = 0;
+    hud->demo_high = state->high_score;
+}
+
+/* Back to the title: the demo never touches the high score. */
+static void demo_end(GameState *state)
+{
+    Hud *hud = &state->hud;
+    state->high_score = hud->demo_high;
+    state->phase = GAME_PHASE_TITLE;
+    state->game_over = false;
+    state->frame = 0;
+    player_init(state);
+    clear_field(state);
+    hud->demo = 0;
+    hud->title_t = 0;
+    hud->over_t = 0;
+}
+
+static void demo_check_end(GameState *state)
+{
+    Hud *hud = &state->hud;
+    if (hud->demo && (++hud->demo_t >= DEMO_STEPS || state->phase == GAME_PHASE_GAME_OVER))
+        demo_end(state);
+}
+
+/* The demo pilot: dodge shots, line up under an enemy and fire; once,
+   park under a Boss's beam so the capture is shown. */
+static void demo_pilot(GameState *state, bool *left, bool *right, bool *fire)
+{
+    Hud *hud = &state->hud;
+    const Player *p = &state->player;
+    int pcx = p->x + p->w / 2;
+    int target = -1, best = 1 << 30, i;
+
+    *left = *right = *fire = false;
+    if (hud->dead_timer > 0)
+        return;
+
+    /* show the tractor beam once the rack has formed */
+    if (!hud->demo_beamed && hud->demo_t >= DEMO_BEAM_AT && capture_can_beam(state)) {
+        for (i = 0; i < MAX_ENEMIES; i++) {
+            const Enemy *e = &state->enemies[i];
+            if (e->active && e->type == ENEMY_TYPE_BOSS && e->state == ENEMY_STATE_FORMATION) {
+                flight_start_beam_dive(state, i);
+                hud->demo_beamed = 1;
+                break;
+            }
+        }
+    }
+    if (state->capture.beam_boss >= 0 && state->capture.state == CAPT_NONE) {
+        target = (int)state->capture.beam_x;     /* drive into the beam */
+    } else {
+        for (i = 0; i < MAX_BULLETS; i++) {
+            const Bullet *b = &state->bullets[i];
+            if (!b->active || b->from_player)
+                continue;
+            int dx = b->x - pcx;
+            if (b->y > p->y - 80 && b->y < p->y + p->h && dx > -14 && dx < 14) {
+                /* dodge away from the shot, toward open space */
+                bool go_left = dx > 0 || pcx > GALAGA_WIDTH - 24;
+                if (pcx < 24) go_left = false;
+                *left = go_left;
+                *right = !go_left;
+                return;
+            }
+        }
+        for (i = 0; i < MAX_ENEMIES; i++) {
+            const Enemy *e = &state->enemies[i];
+            if (!e->active || e->y > p->y - 40 || e->y < 0)
+                continue;
+            /* spare the Bosses until one has shown its beam */
+            if (!hud->demo_beamed && e->type == ENEMY_TYPE_BOSS)
+                continue;
+            int d = abs(e->x + e->w / 2 - pcx) + (e->state == ENEMY_STATE_DIVING ? 0 : 20);
+            if (d < best) { best = d; target = e->x + e->w / 2; }
+        }
+    }
+    if (target >= 0) {
+        if (target < pcx - 2) *left = true;
+        else if (target > pcx + 2) *right = true;
+        if (abs(target - pcx) < 9 && (hud->ticks % 9) == 0 && state->capture.beam_boss < 0)
+            *fire = true;
+    }
+}
+
 static void sim_step(GameState *state, bool move_left, bool move_right, bool fire)
 {
-    int phase_before = state->phase;
     Hud *hud = &state->hud;
+
+    if (hud->demo) {
+        if (move_left || move_right || fire) {
+            /* any input ends the demo; fire goes on to start a real game */
+            demo_end(state);
+            move_left = move_right = false;
+        } else {
+            demo_pilot(state, &move_left, &move_right, &fire);
+        }
+    } else if (state->phase == GAME_PHASE_TITLE) {
+        if (++hud->title_t >= DEMO_AFTER_STEPS && !fire) {
+            demo_start(state);
+            fire = true;                      /* "press start" for the demo */
+        }
+    }
+
+    int phase_before = state->phase;
 
     hud->ticks++;
     if (state->phase == GAME_PHASE_GAME_OVER) {
@@ -133,6 +245,7 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
             state->frame = 0;
             player_init(state);
             hud->over_t = 0;
+            hud->title_t = 0;
             clear_field(state);
             return;
         }
@@ -142,8 +255,10 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
         hud->over_t = 0;
     }
     game_state_tick(state, fire ? 1 : 0);
-    if (phase_before != GAME_PHASE_TITLE && state->phase == GAME_PHASE_TITLE)
+    if (phase_before != GAME_PHASE_TITLE && state->phase == GAME_PHASE_TITLE) {
         clear_field(state);
+        hud->title_t = 0;
+    }
 
     /* game_state_tick (asm or C) spawns the old 5x8 grid when a stage
        starts; replace it with the arcade rack and its fly-in waves. */
@@ -152,10 +267,15 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
         capture_reset(state, phase_before == GAME_PHASE_TITLE);
         flight_begin_stage(state);
     }
+    if (hud->demo && hud->banner == BANNER_PLAYER1) {
+        hud->banner = BANNER_NONE;            /* the demo starts straight in */
+        hud->banner_timer = 0;
+    }
 
     if (!game_state_is_playing(state)) {
         effects_tick(state);
         maybe_save_high_score(state, phase_before);
+        demo_check_end(state);
         return;
     }
 
@@ -197,6 +317,8 @@ static void sim_step(GameState *state, bool move_left, bool move_right, bool fir
         game_state_begin_stage_clear(state);
 
     maybe_save_high_score(state, phase_before);
+
+    demo_check_end(state);
 }
 
 void game_tick(GameState *state, float dt, bool move_left, bool move_right, bool fire)
